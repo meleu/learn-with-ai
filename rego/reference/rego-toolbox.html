@@ -1,0 +1,55 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference · Rego Toolbox</title>
+<link rel="stylesheet" href="../assets/style.css">
+
+<h1>Rego Toolbox</h1>
+<p class="lesson-meta">Reference sheet · local tooling &amp; minimal syntax</p>
+
+<h2>CLI commands</h2>
+<table>
+  <tr><th>Command</th><th>Purpose</th></tr>
+  <tr><td><code>opa eval --data policy.rego 'data.pkg.rule'</code></td><td>Evaluate a query against policies (<code>-d</code>)</td></tr>
+  <tr><td><code>opa eval --input file.json --data policy.rego 'query'</code></td><td><code>input</code> from a JSON/YAML file (<code>-i</code>)</td></tr>
+  <tr><td><code>opa eval --stdin-input --data policy.rego 'query'</code></td><td><code>input</code> from stdin (<code>-I</code>)</td></tr>
+  <tr><td><code>opa eval ... --format raw</code></td><td>Plain output instead of JSON envelope</td></tr>
+  <tr><td><code>opa run policy.rego</code></td><td>Interactive REPL for experimenting</td></tr>
+  <tr><td><code>opa test .</code></td><td>Run unit tests (<code>*_test.rego</code>)</td></tr>
+  <tr><td><code>opa fmt --write policy.rego</code></td><td>Auto-format in place (<code>-w</code>)</td></tr>
+  <tr><td><code>opa check policy.rego</code></td><td>Syntax/type check without evaluating</td></tr>
+  <tr><td><code>conftest test config.yaml</code></td><td>Apply <code>policy/*.rego</code> to a config file</td></tr>
+</table>
+
+<h2>Minimal policy anatomy</h2>
+<pre><code><span class="hl">package</span> hello                     <span class="cm"># namespace → data.hello</span>
+
+greeting := "Hello, Rego!"        <span class="cm"># constant rule</span>
+
+allow <span class="hl">if</span> input.role == "admin"   <span class="cm"># boolean rule; undefined when body fails</span>
+
+deny <span class="hl">contains</span> msg <span class="hl">if</span> {            <span class="cm"># set rule: collects messages (conftest style)</span>
+    input.kind == "Deployment"
+    msg := "some violation text"
+}</code></pre>
+
+<h2>Key facts</h2>
+<ul>
+  <li><code>input</code> = the JSON document under judgment; <code>data</code> = policies + external data.</li>
+  <li>Rule body lines are ANDed. Multiple definitions of the same rule = OR.</li>
+  <li>A boolean rule whose body fails is <strong>undefined</strong>, not <code>false</code> (use <code>default allow := false</code> to get a real <code>false</code>).</li>
+  <li>OPA ≥ 1.0: <code>if</code> and <code>contains</code> keywords are <strong>mandatory</strong>. Distrust older tutorials.</li>
+  <li>conftest convention: package <code>main</code>, rules named <code>deny</code>/<code>warn</code>/<code>violation</code> (suffixes allowed: <code>deny_no_root</code>).</li>
+</ul>
+
+<h2>Links</h2>
+<ul>
+  <li><a href="https://www.openpolicyagent.org/docs/policy-language">Policy Language docs</a> — the authoritative reference</li>
+  <li><a href="https://www.conftest.dev/">conftest docs</a> · <a href="https://play.openpolicyagent.org/">Rego Playground</a></li>
+  <li><a href="https://www.openpolicyagent.org/docs#running-opa">Install OPA</a> · <a href="https://www.conftest.dev/install/">Install conftest</a></li>
+</ul>
+
+<div class="nav-footer">
+  <span><a href="../lessons/0001-why-rego-and-hello-world.html">← Lesson 0001</a></span>
+</div>
+
+<script src="../assets/copy-code.js"></script>

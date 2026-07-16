@@ -1,0 +1,137 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 · Why Rego Exists — and Your First Policy</title>
+<link rel="stylesheet" href="../assets/style.css">
+
+<h1>Why Rego Exists — and Your First Policy</h1>
+<p class="lesson-meta">Lesson 0001 · ~15 minutes · Mission: conftest policies at work</p>
+
+<h2>1 · Why was Rego created?</h2>
+
+<p>Every service you run makes policy decisions: <em>may this deployment run as root? Does this pipeline pin its image versions? Is this <code>pom.xml</code> using an approved repository?</em> Traditionally those rules live <strong>hard-coded inside each tool or service</strong> — scattered, inconsistent, and impossible to update without redeploying software.</p>
+
+<p><a href="https://www.openpolicyagent.org/docs/philosophy">Open Policy Agent (OPA)</a> was created to fix exactly that: it <strong>decouples policy from software</strong>. Your services (or conftest, in your case) hand OPA a JSON document and ask a question; OPA answers using rules written in one dedicated language — <strong>Rego</strong>.</p>
+
+<p>Rego itself is <a href="https://www.openpolicyagent.org/docs/policy-language">inspired by Datalog</a>, a decades-old logic query language, extended to work over modern structured documents (JSON/YAML). Two consequences you'll feel immediately:</p>
+
+<ul>
+  <li><strong>Declarative:</strong> you state <em>what must be true</em>, not <em>how to check it</em>. No loops to write; OPA figures out execution.</li>
+  <li><strong>Everything is a document:</strong> a Kubernetes manifest, a Dockerfile, a <code>pom.xml</code> — conftest converts them all to JSON, and one language queries them all.</li>
+</ul>
+
+<div class="aside" data-label="For teaching coworkers">
+The one-sentence pitch: <em>“Rego lets us write our team's rules once, as code, and check every config against them automatically — instead of rules living in wiki pages and code reviews.”</em>
+</div>
+
+<h2>2 · Your local toolbox</h2>
+
+<p>Three tools cover the whole mission:</p>
+
+<table>
+  <tr><th>Tool</th><th>What for</th><th>Install</th></tr>
+  <tr>
+    <td><code>opa</code></td>
+    <td>Evaluate (<code>opa eval</code>), explore interactively (<code>opa run</code>), unit-test (<code>opa test</code>), format (<code>opa fmt</code>)</td>
+    <td><a href="https://www.openpolicyagent.org/docs#running-opa">docs</a></td>
+  </tr>
+  <tr>
+    <td><code>conftest</code></td>
+    <td>Run Rego policies against real config files (YAML, Dockerfile, XML, TOML…)</td>
+    <td><a href="https://www.conftest.dev/install/">docs</a></td>
+  </tr>
+  <tr>
+    <td><a href="https://play.openpolicyagent.org/">Rego Playground</a></td>
+    <td>Zero-install browser sandbox — great for sharing snippets with coworkers</td>
+    <td>—</td>
+  </tr>
+</table>
+
+<p>Install both CLIs with Homebrew:</p>
+
+<pre><code>brew install opa conftest</code></pre>
+
+<div class="aside" data-label="Syntax warning">
+Since <strong>OPA 1.0</strong> the keywords <code>if</code> and <code>contains</code> are mandatory in rule definitions. Older blog posts show rules without them — that syntax is dead. Everything in this course uses current syntax.
+</div>
+
+<h2>3 · Hello, Rego</h2>
+
+<p>Create <code>hello.rego</code>:</p>
+
+<pre><code><span class="hl">package</span> hello                <span class="cm"># namespace: reachable as data.hello</span>
+
+greeting := "Hello, Rego!"   <span class="cm"># a rule defining a constant value</span></code></pre>
+
+<p>Query it:</p>
+
+<pre><code>$ opa eval --data hello.rego 'data.hello.greeting' --format raw
+Hello, Rego!</code></pre>
+
+<p>Now feed it an <code>input</code> document — no policy file needed, a query can read <code>input</code> directly:</p>
+
+<pre><code>$ echo '{"name": "meleu"}' | opa eval --stdin-input 'input.name' --format raw
+meleu</code></pre>
+
+<h3>The <code>opa eval</code> options, decoded</h3>
+
+<table>
+  <tr><th>Option</th><th>Short</th><th>Meaning</th></tr>
+  <tr><td><code>--data hello.rego</code></td><td><code>-d</code></td><td>Load a policy (or data) file. Its contents become part of the <code>data</code> tree — that's why the query says <code>data.hello.greeting</code>.</td></tr>
+  <tr><td><code>--input file.json</code></td><td><code>-i</code></td><td>Provide the <code>input</code> document from a JSON/YAML file.</td></tr>
+  <tr><td><code>--stdin-input</code></td><td><code>-I</code></td><td>Same as <code>--input</code>, but read the document from stdin — handy for piping.</td></tr>
+  <tr><td><code>--format raw</code></td><td>—</td><td>Print the bare value. Without it, <code>opa eval</code> wraps results in a JSON envelope with query metadata (try it).</td></tr>
+</table>
+
+<p>Two ideas hiding in these three lines — they carry through everything you'll ever write in Rego:</p>
+
+<ol>
+  <li><strong><code>package</code></strong> namespaces your rules. Your policy becomes part of a document tree: <code>data.hello.greeting</code>.</li>
+  <li><strong>There are exactly two worlds:</strong> <code>data</code> (everything you load with <code>--data</code>: policies, lookup tables) and <code>input</code> (the one document currently being judged, via <code>--input</code>/<code>--stdin-input</code>). Every Rego query reads from these two trees.</li>
+</ol>
+
+<div class="win">
+Run both <code>opa eval</code> commands above on your machine. When you see <code>Hello, Rego!</code> and <code>meleu</code>, you have a working policy toolchain — the same one that will guard your team's configs.
+</div>
+
+<h2>4 · Check yourself</h2>
+<p>Answer from memory — one attempt each.</p>
+
+<div class="quiz" data-answer="1">
+  <p class="q">What core problem was OPA created to solve?</p>
+  <button class="opt">Missing type safety in YAML configs</button>
+  <button class="opt">Policy logic hard-coded into services</button>
+  <button class="opt">Slow parsing of large JSON documents</button>
+  <div class="feedback">OPA <a href="https://www.openpolicyagent.org/docs/philosophy">decouples policy from software</a> so rules can be written, versioned, and updated independently.</div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">Which document does <code>--stdin-input</code> feed?</p>
+  <button class="opt">The input document under judgment</button>
+  <button class="opt">The data tree of policies</button>
+  <button class="opt">The format of the output</button>
+  <div class="feedback"><code>input</code> = the document being judged (via <code>--input</code> or <code>--stdin-input</code>); <code>data</code> = policies and files loaded with <code>--data</code>.</div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <p class="q">Which command queries a policy file from your terminal?</p>
+  <button class="opt"><code>opa fmt --data hello.rego 'data.hello.greeting'</code></button>
+  <button class="opt"><code>opa test --data hello.rego 'data.hello.greeting'</code></button>
+  <button class="opt"><code>opa eval --data hello.rego 'data.hello.greeting'</code></button>
+  <div class="feedback"><code>eval</code> evaluates queries; <code>test</code> runs unit tests; <code>fmt</code> formats code.</div>
+</div>
+
+<h2>5 · Go deeper</h2>
+<p><strong>Primary source:</strong> read the opening sections of the official <a href="https://www.openpolicyagent.org/docs/policy-language">Policy Language documentation</a> — the single most authoritative Rego reference, and the one to hand coworkers.</p>
+<p>Quick lookups: <a href="../reference/rego-toolbox.html">Rego toolbox reference sheet</a>.</p>
+
+<div class="aside" data-label="Stuck? Curious?">
+Ask your teacher (the agent) anything — why <code>:=</code> and not <code>=</code>, what happens when you query something that doesn't exist (<code>data.hello.nope</code>), what the JSON envelope fields mean. Follow-up questions are the point.
+</div>
+
+<div class="nav-footer">
+  <span>Lesson 0001</span>
+  <span>Next: writing real conftest <code>deny</code> rules →</span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+<script src="../assets/copy-code.js"></script>

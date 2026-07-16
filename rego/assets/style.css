@@ -1,0 +1,179 @@
+/* Shared course stylesheet — every lesson and reference doc links this. */
+:root {
+  --bg: #fffff8;
+  --fg: #111;
+  --muted: #666;
+  --accent: #b3592a;      /* warm rust — links, highlights */
+  --code-bg: #f4f2ec;
+  --border: #ddd8cc;
+  --good: #2a7a3b;
+  --bad: #b3382a;
+  font-size: 1.3rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151513;
+    --fg: #e8e6df;
+    --muted: #999;
+    --accent: #e08e5a;
+    --code-bg: #23221e;
+    --border: #3a3830;
+    --good: #6fbf7e;
+    --bad: #e07a6d;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0 auto;
+  padding: 2rem 1.25rem 5rem;
+  max-width: 42rem;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1.55;
+}
+
+h1, h2, h3 { font-weight: 500; line-height: 1.2; }
+h1 { font-size: 1.9rem; margin: 0 0 0.25rem; }
+h2 { font-size: 1.35rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+h3 { font-size: 1.1rem; margin-top: 1.8rem; }
+
+.lesson-meta {
+  color: var(--muted);
+  font-style: italic;
+  margin-bottom: 2rem;
+}
+
+a { color: var(--accent); }
+a:hover { text-decoration-thickness: 2px; }
+
+code, pre {
+  font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  background: var(--code-bg);
+  border-radius: 4px;
+}
+code { padding: 0.1em 0.35em; }
+pre {
+  position: relative;
+  padding: 0.9rem 1.1rem;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  line-height: 1.45;
+}
+
+/* copy button (used with copy-code.js) */
+pre .copy-btn {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  padding: 0.15rem 0.55rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+pre:hover .copy-btn, pre .copy-btn:focus-visible { opacity: 1; }
+pre .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+pre .copy-btn.done { color: var(--good); border-color: var(--good); opacity: 1; }
+pre code { padding: 0; background: none; }
+
+/* code annotation comments */
+pre .cm { color: var(--muted); }
+pre .hl { color: var(--accent); font-weight: bold; }
+
+blockquote {
+  margin: 1.5rem 0;
+  padding: 0.1rem 1.25rem;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+  font-style: italic;
+}
+
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { text-align: left; padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--border); }
+th { font-family: system-ui, sans-serif; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+
+.aside {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.8rem 1.1rem;
+  font-size: 0.92rem;
+  margin: 1.5rem 0;
+}
+.aside::before {
+  content: attr(data-label);
+  display: block;
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 0.3rem;
+}
+
+.win {
+  border: 2px solid var(--good);
+  border-radius: 6px;
+  padding: 0.9rem 1.2rem;
+  margin: 2rem 0;
+}
+.win::before {
+  content: "✓ Your win for this lesson";
+  display: block;
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--good);
+  margin-bottom: 0.3rem;
+}
+
+.nav-footer {
+  margin-top: 3.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* ---- quiz widget (used with quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  font-family: system-ui, sans-serif;
+  font-size: 0.95rem;
+}
+.quiz p.q { font-weight: 600; margin: 0 0 0.6rem; }
+.quiz button.opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 0.35rem 0;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+.quiz button.opt:hover { border-color: var(--accent); }
+.quiz button.opt.correct { border-color: var(--good); outline: 2px solid var(--good); }
+.quiz button.opt.wrong { border-color: var(--bad); outline: 2px solid var(--bad); }
+.quiz .feedback { margin-top: 0.6rem; font-size: 0.88rem; display: none; }
+.quiz .feedback.show { display: block; }
