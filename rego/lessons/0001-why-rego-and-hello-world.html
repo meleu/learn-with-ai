@@ -50,10 +50,6 @@ The one-sentence pitch: <em>“Rego lets us write our team's rules once, as code
 
 <pre><code>brew install opa conftest</code></pre>
 
-<div class="aside" data-label="Syntax warning">
-Since <strong>OPA 1.0</strong> the keywords <code>if</code> and <code>contains</code> are mandatory in rule definitions. Older blog posts show rules without them — that syntax is dead. Everything in this course uses current syntax.
-</div>
-
 <h2>3 · Hello, Rego</h2>
 
 <p>Create <code>hello.rego</code>:</p>
@@ -61,6 +57,12 @@ Since <strong>OPA 1.0</strong> the keywords <code>if</code> and <code>contains</
 <pre><code><span class="hl">package</span> hello                <span class="cm"># namespace: reachable as data.hello</span>
 
 greeting := "Hello, Rego!"   <span class="cm"># a rule defining a constant value</span></code></pre>
+
+<h3>What you just wrote: a <em>rule</em></h3>
+
+<p>That second line is a <strong>rule</strong> — the fundamental building block of Rego. A rule is a <em>named definition</em> inside a package: it gives a name (<code>greeting</code>) to a value (<code>"Hello, Rego!"</code>). A policy file is nothing more than a <code>package</code> declaration plus a collection of rules (<a href="https://www.openpolicyagent.org/docs/policy-language#rules">docs: rules</a>).</p>
+
+<p><code>greeting</code> defines a constant, the simplest possible rule. Soon your rules will compute values <em>conditionally</em> — “this deployment is denied <em>if</em> it runs as root” — but the concept stays the same: a name, defined in a package, that a query can ask for.</p>
 
 <p>Query it:</p>
 
@@ -119,6 +121,14 @@ Run both <code>opa eval</code> commands above on your machine. When you see <cod
   <div class="feedback"><code>input</code> = the document being judged (via <code>--input</code> or <code>--stdin-input</code>); <code>data</code> = policies and files loaded with <code>--data</code>.</div>
 </div>
 
+<div class="quiz" data-answer="1">
+  <p class="q">In Rego, what is a <em>rule</em>?</p>
+  <button class="opt">A CLI flag controlling policy output</button>
+  <button class="opt">A named definition inside a package</button>
+  <button class="opt">A JSON schema validating input files</button>
+  <div class="feedback">Rules are Rego's building block: a name, defined in a package, that a query can ask for. <code>greeting := "Hello, Rego!"</code> is a rule defining a constant.</div>
+</div>
+
 <div class="quiz" data-answer="2">
   <p class="q">Which command queries a policy file from your terminal?</p>
   <button class="opt"><code>opa fmt --data hello.rego 'data.hello.greeting'</code></button>
@@ -130,6 +140,10 @@ Run both <code>opa eval</code> commands above on your machine. When you see <cod
 <h2>5 · Go deeper</h2>
 <p><strong>Primary source:</strong> read the opening sections of the official <a href="https://www.openpolicyagent.org/docs/policy-language">Policy Language documentation</a> — the single most authoritative Rego reference, and the one to hand coworkers.</p>
 <p>Quick lookups: <a href="../reference/rego-toolbox.html">Rego toolbox reference sheet</a>.</p>
+
+<div class="aside" data-label="Syntax warning">
+Since <strong>OPA 1.0</strong> the keyword <code>if</code> is mandatory before a rule's body (its conditions), and <code>contains</code> is mandatory in multi-value rules (rules that build a set). Bodiless constants like <code>greeting := "Hello"</code> need neither. Older blog posts show bodied rules without <code>if</code> — that syntax is dead. Everything in this course uses current syntax.
+</div>
 
 <div class="aside" data-label="Stuck? Curious?">
 Ask your teacher (the agent) anything — why <code>:=</code> and not <code>=</code>, what happens when you query something that doesn't exist (<code>data.hello.nope</code>), what the JSON envelope fields mean. Follow-up questions are the point.
