@@ -14,4 +14,6 @@
 
 ## Teaching decisions
 - Teach OPA v1.0+ syntax from day one (`if` / `contains` keywords mandatory since OPA 1.0, Dec 2024). Never show legacy syntax except to warn about old blog posts.
-- Lesson arc (draft): hello world → rules & evaluation model → input/data documents → conftest deny/warn → iteration & comprehensions → policy testing → real work configs.
+- Lesson arc (draft): hello world → why conftest (done, 0002) → rule anatomy (`deny contains msg if`, evaluation model) → iteration & comprehensions → policy testing → real work configs.
+- User pulled conftest motivation forward (asked after lesson 1). Lesson 0002 covered it conceptually + workflow demo; rule syntax deliberately deferred with "dissected next lesson" note — deliver on that.
+- conftest gotcha verified locally: `conftest parse` wraps output in outer array (one element per document), but in `conftest test` the policy receives each document directly as `input`.

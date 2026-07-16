@@ -18,6 +18,16 @@
   <tr><td><code>opa fmt --write policy.rego</code></td><td>Auto-format in place (<code>-w</code>)</td></tr>
   <tr><td><code>opa check policy.rego</code></td><td>Syntax/type check without evaluating</td></tr>
   <tr><td><code>conftest test config.yaml</code></td><td>Apply <code>policy/*.rego</code> to a config file</td></tr>
+  <tr><td><code>conftest parse Dockerfile</code></td><td>Show the JSON that a file becomes (the future <code>input</code>)</td></tr>
+  <tr><td><code>conftest test --policy dir/ --namespace pkg file</code></td><td>Override policy dir (default <code>./policy/</code>) and package (default <code>main</code>)</td></tr>
+</table>
+
+<h2>conftest exit codes</h2>
+<table>
+  <tr><th>Result</th><th>Default</th><th>With <code>--fail-on-warn</code></th></tr>
+  <tr><td>All pass</td><td>0</td><td>0</td></tr>
+  <tr><td>Warnings only</td><td>0</td><td>1</td></tr>
+  <tr><td>Any failure</td><td>1</td><td>2</td></tr>
 </table>
 
 <h2>Minimal policy anatomy</h2>

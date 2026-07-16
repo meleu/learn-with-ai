@@ -1,0 +1,154 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2 · Why conftest Exists</title>
+<link rel="stylesheet" href="../assets/style.css">
+
+<h1>Why conftest Exists</h1>
+<p class="lesson-meta">Lesson 0002 · ~15 minutes · Mission: conftest policies at work</p>
+
+<div class="aside" data-label="Builds on lesson 0001">
+Every value a Rego query can see lives in <code>input</code> or <code>data</code> (<a href="0001-why-rego-and-hello-world.html">lesson 0001</a>). Keep that in mind — this whole lesson is about <em>who builds <code>input</code> for you</em>.
+</div>
+
+<h2>1 · Same engine, two different questions</h2>
+
+<p><a href="https://www.conftest.dev/">conftest</a> is not a rival to OPA — it <strong>embeds OPA's Rego engine as a library</strong>. Every line of Rego you write for conftest is evaluated by the exact same code as <code>opa eval</code>. What differs is the question each CLI answers:</p>
+
+<table>
+  <tr><th>Tool</th><th>The question it answers</th><th>Analogy</th></tr>
+  <tr><td><code>opa eval</code></td><td>“What is the <em>value</em> of this query?”</td><td>a REPL / calculator</td></tr>
+  <tr><td><code>conftest test</code></td><td>“Does this <em>file</em> pass our rules?”</td><td>a test runner (JUnit)</td></tr>
+</table>
+
+<p><code>opa</code> is a general-purpose policy engine: it evaluates queries, runs servers, serves any decision any software might ask. <code>conftest</code> is a purpose-built wrapper for exactly one job — <strong>testing config files in a terminal or CI pipeline</strong> — which happens to be your mission.</p>
+
+<h2>2 · The three gaps conftest fills</h2>
+
+<h3>Gap 1 — Parsers: opa can't even read your files</h3>
+
+<p><code>opa eval --input</code> accepts JSON and YAML. Full stop. Your mission targets Dockerfiles and <code>pom.xml</code> — <code>opa</code> has no idea what those are. conftest ships <a href="https://www.conftest.dev/">parsers for 16+ formats</a> (YAML, JSON, XML, Dockerfile, HCL/Terraform, TOML, INI, EDN, …) and converts each file into the <code>input</code> document before your policy ever runs.</p>
+
+<div class="aside" data-label="In lesson-0001 terms">
+conftest's first job is: <strong>build <code>input</code> from any config format</strong>. Your Rego stays pure — it always queries a JSON document, never “a Dockerfile” or “an XML file.”
+</div>
+
+<h3>Gap 2 — Conventions instead of hand-written queries</h3>
+
+<p>With plain <code>opa eval</code>, <em>you</em> decide the package name, write the query string, and interpret the result. conftest replaces all that with fixed conventions:</p>
+
+<table>
+  <tr><th>Convention</th><th>Default</th></tr>
+  <tr><td>Where policies live</td><td><code>./policy/</code> directory (override: <code>--policy</code>)</td></tr>
+  <tr><td>Which package is queried</td><td><code>package main</code> (override: <code>--namespace</code>)</td></tr>
+  <tr><td>Rules that mean <strong>failure</strong></td><td><code>deny</code> or <code>violation</code> (suffixes allowed: <code>deny_run_as_root</code>)</td></tr>
+  <tr><td>Rules that mean <strong>warning</strong></td><td><code>warn</code></td></tr>
+</table>
+
+<p>No query to write. <code>conftest test somefile</code> finds the rules, runs them, prints each message.</p>
+
+<h3>Gap 3 — CI ergonomics</h3>
+
+<p>A CI pipeline speaks exit codes. conftest translates rule results into them (<a href="https://www.conftest.dev/options/">docs: options</a>):</p>
+
+<table>
+  <tr><th>Result</th><th>Exit code</th><th>With <code>--fail-on-warn</code></th></tr>
+  <tr><td>All rules pass</td><td>0</td><td>0</td></tr>
+  <tr><td>Warnings only</td><td>0</td><td>1</td></tr>
+  <tr><td>Any failure</td><td>1</td><td>2</td></tr>
+</table>
+
+<p>With plain <code>opa eval</code> you'd script this yourself (there is <code>--fail-defined</code>, but you'd be hand-rolling output formatting, multi-file handling, warnings vs failures… i.e. rebuilding conftest).</p>
+
+<h2>3 · Feel it: judge a Dockerfile</h2>
+
+<p>Create <code>exercises/docker/Dockerfile</code>:</p>
+
+<pre><code>FROM ubuntu:latest
+RUN apt-get update
+USER root</code></pre>
+
+<p>First, see conftest's parser build the <code>input</code> document — something <code>opa</code> alone cannot do:</p>
+
+<pre><code>$ conftest parse Dockerfile</code></pre>
+
+<pre><code>[
+  [
+    { "Cmd": "from", "Value": ["ubuntu:latest"], "Stage": 0, ... },
+    { "Cmd": "run",  "Value": ["apt-get update"], "Stage": 0, ... },
+    { "Cmd": "user", "Value": ["root"], "Stage": 0, ... }
+  ]
+]</code></pre>
+
+<p>A Dockerfile is now just a JSON document — a list of commands. Now create <code>policy/docker.rego</code> next to it:</p>
+
+<pre><code><span class="hl">package</span> main                          <span class="cm"># conftest's default namespace</span>
+
+deny <span class="hl">contains</span> msg <span class="hl">if</span> {                <span class="cm"># syntax dissected next lesson —</span>
+    <span class="hl">some</span> command <span class="hl">in</span> input             <span class="cm"># today, focus on the workflow</span>
+    command.Cmd == "user"
+    command.Value[0] == "root"
+    msg := "do not run containers as root"
+}</code></pre>
+
+<p>Run it, then check the exit code:</p>
+
+<pre><code>$ conftest test Dockerfile
+FAIL - Dockerfile - main - do not run containers as root
+
+1 test, 0 passed, 0 warnings, 1 failure, 0 exceptions
+
+$ echo $?
+1</code></pre>
+
+<p>No query written, no parser configured, CI-ready exit code. That is why conftest exists.</p>
+
+<div class="aside" data-label="Subtlety: parse vs test">
+<code>conftest parse</code> prints an <em>outer array</em> — one element per parsed document. During <code>conftest test</code>, each document is handed to your policy directly, so <code>input</code> is the command list itself (that's why the rule says <code>some command in input</code>, not <code>input[0]</code>).
+</div>
+
+<div class="win">
+Run <code>conftest parse Dockerfile</code> and <code>conftest test Dockerfile</code> on your machine, and confirm <code>echo $?</code> prints <code>1</code>. Then fix the Dockerfile (change the <code>USER</code>) and watch it pass with exit code <code>0</code>.
+</div>
+
+<h2>4 · Check yourself</h2>
+<p>Answer from memory — one attempt each.</p>
+
+<div class="quiz" data-answer="2">
+  <p class="q">conftest embeds OPA's Rego engine unchanged. What does it add on top?</p>
+  <button class="opt">A faster rewritten Rego evaluation engine</button>
+  <button class="opt">A server mode for REST API queries</button>
+  <button class="opt">Parsers, test conventions, CI exit codes</button>
+  <div class="feedback">Same engine, same Rego. conftest adds file parsers (16+ formats), fixed conventions (<code>main</code>, <code>deny</code>/<code>warn</code>/<code>violation</code>), and pipeline-friendly exit codes.</div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <p class="q">By default, which package does <code>conftest test</code> look for rules in?</p>
+  <button class="opt"><code>main</code></button>
+  <button class="opt"><code>data</code></button>
+  <button class="opt"><code>test</code></button>
+  <div class="feedback"><code>package main</code> is the default namespace; override with <code>--namespace</code>.</div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">Without extra flags, what exit code does conftest return when a <code>warn</code> rule fires (and no <code>deny</code>)?</p>
+  <button class="opt"><code>1</code></button>
+  <button class="opt"><code>0</code></button>
+  <button class="opt"><code>2</code></button>
+  <div class="feedback">Warnings don't fail the run by default — exit <code>0</code>. Add <code>--fail-on-warn</code> to make warnings exit <code>1</code> (failures then exit <code>2</code>).</div>
+</div>
+
+<h2>5 · Go deeper</h2>
+<p><strong>Primary source:</strong> the <a href="https://www.conftest.dev/">official conftest documentation</a> — short, readable, and covers every convention this lesson introduced.</p>
+<p>Quick lookups: <a href="../reference/rego-toolbox.html">Rego toolbox reference sheet</a>.</p>
+
+<div class="aside" data-label="Stuck? Curious?">
+Ask your teacher (the agent) anything — why the rule is named <code>deny</code> and not <code>denied</code>, how conftest handles a directory full of YAML files, what <code>violation</code> adds over <code>deny</code>. Follow-up questions are the point.
+</div>
+
+<div class="nav-footer">
+  <span><a href="0001-why-rego-and-hello-world.html">← Lesson 0001: Why Rego exists</a></span>
+  <span>Next: anatomy of a rule — how <code>deny contains msg if</code> actually works →</span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+<script src="../assets/copy-code.js"></script>

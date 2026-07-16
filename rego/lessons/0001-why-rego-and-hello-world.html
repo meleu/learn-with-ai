@@ -82,12 +82,19 @@ meleu</code></pre>
   <tr><td><code>--format raw</code></td><td>—</td><td>Print the bare value. Without it, <code>opa eval</code> wraps results in a JSON envelope with query metadata (try it).</td></tr>
 </table>
 
-<p>Two ideas hiding in these three lines — they carry through everything you'll ever write in Rego:</p>
+<p>One idea hiding in these three lines: <strong><code>package</code></strong> namespaces your rules. Your policy becomes part of a document tree — that's why the query says <code>data.hello.greeting</code>.</p>
 
-<ol>
-  <li><strong><code>package</code></strong> namespaces your rules. Your policy becomes part of a document tree: <code>data.hello.greeting</code>.</li>
-  <li><strong>There are exactly two worlds:</strong> <code>data</code> (everything you load with <code>--data</code>: policies, lookup tables) and <code>input</code> (the one document currently being judged, via <code>--input</code>/<code>--stdin-input</code>). Every Rego query reads from these two trees.</li>
-</ol>
+<h3>The two root documents: <code>input</code> and <code>data</code></h3>
+
+<div class="aside" data-label="Core concept — everything in Rego builds on this">
+<p style="margin-top:0">Every value a Rego query can ever see lives in one of exactly <strong>two trees</strong>:</p>
+<table style="margin-bottom:0.5rem">
+  <tr><th>Document</th><th>What it holds</th><th>How it gets there</th></tr>
+  <tr><td><code>input</code></td><td>The <em>one</em> document currently being judged</td><td><code>--input</code> / <code>--stdin-input</code></td></tr>
+  <tr><td><code>data</code></td><td>Your policies + any static reference data (lookup tables, allowlists)</td><td><code>--data</code></td></tr>
+</table>
+<p style="margin-bottom:0">You just used both: <code>data.hello.greeting</code> came from a file you loaded; <code>input.name</code> came from the document you piped in. Every policy you'll ever write is a question about <code>input</code>, answered by rules living in <code>data</code> (<a href="https://www.openpolicyagent.org/docs/philosophy">the document model</a>).</p>
+</div>
 
 <div class="win">
 Run both <code>opa eval</code> commands above on your machine. When you see <code>Hello, Rego!</code> and <code>meleu</code>, you have a working policy toolchain — the same one that will guard your team's configs.
@@ -130,7 +137,7 @@ Ask your teacher (the agent) anything — why <code>:=</code> and not <code>=</c
 
 <div class="nav-footer">
   <span>Lesson 0001</span>
-  <span>Next: writing real conftest <code>deny</code> rules →</span>
+  <span><a href="0002-why-conftest-exists.html">Next: why conftest exists →</a></span>
 </div>
 
 <script src="../assets/quiz.js"></script>
