@@ -71,8 +71,33 @@ Hello, Rego!</code></pre>
 
 <p>Now feed it an <code>input</code> document — no policy file needed, a query can read <code>input</code> directly:</p>
 
-<pre><code>$ echo '{"name": "meleu"}' | opa eval --stdin-input 'input.name' --format raw
+<pre><code>$ echo '{"name": "meleu"}' |
+  opa eval --stdin-input 'input.name' --format raw
 meleu</code></pre>
+
+<h3>A rule that <em>validates</em> its input</h3>
+
+<p>A constant is the simplest rule; the useful ones have a <strong>body</strong> — conditions after the keyword <code>if</code>. The rule defines its value <em>only when every condition holds</em>. Create <code>validate.rego</code>:</p>
+
+<pre><code><span class="hl">package</span> validate
+
+valid <span class="hl">if</span> input.replicas &gt;= 2   <span class="cm"># "valid" exists only when replicas ≥ 2</span></code></pre>
+
+<p>Now load the rule (<code>--data</code>) <em>and</em> pipe in a document to judge (<code>--stdin-input</code>) — both root trees at once:</p>
+
+<pre><code>$ echo '{"replicas": 3}' |
+  opa eval --data validate.rego --stdin-input 'data.validate.valid' --format raw
+true
+
+$ echo '{"replicas": 1}' |
+  opa eval --data validate.rego --stdin-input 'data.validate.valid' --format raw
+      <span class="cm"># ← nothing. the rule is *undefined*, not false</span></code></pre>
+
+<div class="aside" data-label="Core concept — undefined ≠ false">
+When a rule's body fails, the rule produces <strong>no value at all</strong> — it is <em>undefined</em>. That's why the second run prints nothing (in the default format you'd see <code>{}</code>, an empty result). Undefined is Rego's normal “this rule didn't fire” signal, and it's exactly how conftest policies work: a <code>deny</code> that stays undefined means <em>nothing to complain about</em>. You'll lean on this constantly.
+</div>
+
+<p>That three-line file is the shape of <em>every</em> config check you'll write: name a condition about <code>input</code>, and let it be defined only when the config is (or isn't) acceptable.</p>
 
 <h3>The <code>opa eval</code> options, decoded</h3>
 
@@ -99,7 +124,7 @@ meleu</code></pre>
 </div>
 
 <div class="win">
-Run both <code>opa eval</code> commands above on your machine. When you see <code>Hello, Rego!</code> and <code>meleu</code>, you have a working policy toolchain — the same one that will guard your team's configs.
+Run all three <code>opa eval</code> commands on your machine — <code>Hello, Rego!</code>, <code>meleu</code>, and a <code>valid</code> rule that flips to <em>undefined</em> when you drop <code>replicas</code> to 1. You now have a working policy toolchain <em>and</em> you've written your first validating rule — the same shape that will guard your team's configs.
 </div>
 
 <h2>4 · Check yourself</h2>
@@ -127,6 +152,14 @@ Run both <code>opa eval</code> commands above on your machine. When you see <cod
   <button class="opt">A named definition inside a package</button>
   <button class="opt">A JSON schema validating input files</button>
   <div class="feedback">Rules are Rego's building block: a name, defined in a package, that a query can ask for. <code>greeting := "Hello, Rego!"</code> is a rule defining a constant.</div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <p class="q">A rule's <code>if</code> body fails. What value does the rule produce?</p>
+  <button class="opt">It produces the boolean value false</button>
+  <button class="opt">It produces nothing — it is undefined</button>
+  <button class="opt">It produces an error and halts eval</button>
+  <div class="feedback">A failed body yields <em>undefined</em>, not <code>false</code>. In conftest, an undefined <code>deny</code> means there's nothing to report.</div>
 </div>
 
 <div class="quiz" data-answer="2">
