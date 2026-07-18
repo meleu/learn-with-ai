@@ -2,27 +2,25 @@
 
 ## Knowledge
 
-- [OPA Docs: Policy Language](https://www.openpolicyagent.org/docs/policy-language)
-  The primary reference for Rego syntax and semantics. Use for: rule syntax, packages, evaluation model, any "how do I write X" question.
-- [OPA Docs: Philosophy](https://www.openpolicyagent.org/docs/philosophy)
-  Why OPA/Rego exists — decoupling policy from services, the unified JSON document model. Use for: the "why was Rego created" story, teaching coworkers the motivation.
-- [OPA Docs: Introduction / Running OPA](https://www.openpolicyagent.org/docs)
-  Install methods, `opa eval`, `opa run` (REPL), running as a server. Use for: local tooling setup.
-- [Conftest Documentation](https://www.conftest.dev/)
-  The tool the mission centers on. Use for: `deny`/`warn`/`violation` conventions, supported file formats (K8s YAML, Dockerfile, XML for pom.xml, TOML, HCL...), the `main` package convention.
-- [Rego Playground](https://play.openpolicyagent.org/)
-  Zero-install browser environment for trying Rego. Use for: quick experiments, sharing snippets with coworkers.
-- [OPA Docs: Policy Testing](https://www.openpolicyagent.org/docs/policy-testing)
-  `opa test` for unit-testing policies. Use for: building the CI-ready test suite the mission requires.
+- [OPA Docs — Introduction](https://www.openpolicyagent.org/docs)
+  The canonical starting point. Use for: what OPA is, the `input`/`data`/decision model, how the pieces fit.
+- [OPA Docs — Philosophy](https://www.openpolicyagent.org/docs/philosophy)
+  Why decouple policy from applications; "policy decision" vs "policy enforcement". Use for: the *why* behind Rego.
+- [OPA Docs — Policy Language (Rego)](https://www.openpolicyagent.org/docs/policy-language)
+  The Rego reference. Use for: rules, documents, complete vs partial rules, `default`, evaluation semantics.
+- [Announcing OPA 1.0](https://www.openpolicyagent.org/blog/announcing-opa-1-0-a-new-standard-for-policy-as-code-a6d8427ee828)
+  OPA 1.0 makes Rego v1 the default: `if` for rule bodies, `contains` for multi-value rules. Use for: writing modern, non-deprecated syntax.
+- [Conftest](https://www.conftest.dev/)
+  The tool you'll actually use: tests config files (YAML/JSON/Dockerfile/HCL/TOML/…) against Rego. Use for: the `deny`/`warn`/`violation` convention, CLI usage, supported formats.
+- [The Rego Playground](https://play.openpolicyagent.org/)
+  Browser REPL for OPA — edit policy + input, see output live, no install. Use for: fast experiments and sharing snippets with coworkers.
 
 ## Wisdom (Communities)
 
-- [OPA Slack (slack.openpolicyagent.org)](https://slack.openpolicyagent.org/)
-  Official community, maintainers active. Use for: idiomatic-Rego questions, conftest edge cases.
-- [GitHub Discussions: open-policy-agent/opa](https://github.com/open-policy-agent/opa/discussions)
-  Searchable Q&A with maintainer answers. Use for: semantics questions before asking live.
+- [OPA Slack](https://slack.openpolicyagent.org/)
+  Official community; active `#rego` and `#conftest` channels. Use for: "is this idiomatic?", debugging real policies.
+- [Stack Overflow — `open-policy-agent` tag](https://stackoverflow.com/questions/tagged/open-policy-agent)
+  Searchable Q&A. Use for: specific error messages and syntax questions.
 
 ## Gaps
-
-- No vetted resource yet for XML/`pom.xml` parsing quirks in conftest — needs research before that lesson.
-- No vetted deep-dive on Rego's Datalog roots (for teaching-level understanding of semantics).
+- Not yet sourced: a strong worked example set for *your* domain (microservice deploy manifests). Candidate for a future custom lesson built from your real configs.

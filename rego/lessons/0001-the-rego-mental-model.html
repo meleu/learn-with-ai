@@ -1,0 +1,252 @@
+<meta charset="utf-8">
+<title>Lesson 1 — The Rego Mental Model</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+
+<p class="kicker"><a href="index.html">Rego Course</a> &nbsp;·&nbsp; Lesson 1</p>
+<h1>The Rego Mental Model</h1>
+<p class="subtitle">Why Rego exists, what a <code>.rego</code> file really is, and the tools you'll practice with.</p>
+
+<div class="tip">
+  <span class="label">Your win for this lesson</span>
+  By the end you can (1) explain to a coworker why OPA/Rego exists, (2) describe a
+  <code>.rego</code> file as a <em>function from data to a decision</em>, and (3) run your
+  first policy locally with <code>opa eval</code>.
+</div>
+
+<h2>1. Why Rego was created</h2>
+
+<p>
+  Every system already makes policy decisions: <em>is this user an adult? can they delete
+  that resource? does this image come from a trusted registry?</em> The old way is to bury
+  those decisions inside each application's code — scattered, inconsistent, and impossible
+  to change without a redeploy.
+</p>
+
+<p>
+  OPA's founding idea is <strong>policy decoupling</strong>: pull the decision <em>out</em>
+  of the application and into a dedicated engine. The official philosophy puts it plainly —
+  policies become something that can be
+  <a href="https://www.openpolicyagent.org/docs/philosophy">"specified declaratively, updated
+  at any time without recompiling or redeploying, and enforced automatically."</a>
+</p>
+
+<div class="why">
+  <span class="label">The distinction that unlocks everything</span>
+  <strong>Decision vs. enforcement.</strong> OPA <em>decides</em> ("this request is not
+  allowed"). The calling system <em>enforces</em> ("so I'll reject it"). Rego only ever
+  computes the decision — it never blocks, deletes, or deploys anything itself.
+</div>
+
+<p>
+  For you, owner of pipelines building hundreds of microservices, the payoff is concrete:
+  one versioned, testable set of rules — <em>policy as code</em> — instead of the same checks
+  hand-copied into every repo. Without a tool like this you'd have to
+  <a href="https://www.openpolicyagent.org/docs/philosophy">"implement policy management for
+  your software from scratch"</a>: invent a language, an evaluator, tests, the works.
+</p>
+
+<div class="quiz">
+  <p class="q">A Rego policy decides a request is not allowed. What happens to the request?</p>
+  <div class="opts">
+    <button class="opt">Rego blocks the request itself, right there inside the engine.</button>
+    <button class="opt" data-correct>Nothing — until some caller enforces the decision it returns.</button>
+    <button class="opt">Rego reverses the request and restores the previous state.</button>
+  </div>
+  <div class="explain">
+    <strong>Decision, not enforcement.</strong> Rego computes a verdict from the data it's
+    given. Acting on that verdict — rejecting the request, failing the pipeline — is the
+    caller's job. This separation is the whole point of OPA.
+  </div>
+</div>
+
+<h2>2. What a <code>.rego</code> file actually is</h2>
+
+<p>
+  Here is the mental model to hold onto, and the one thing most newcomers get wrong. A
+  <code>.rego</code> file is <strong>not</strong> a script that runs top-to-bottom doing
+  things. It is a set of <strong>declarative definitions</strong>. Given some input data,
+  it <em>computes a value</em>. Think of it as a pure function:
+</p>
+
+<div class="flow">
+  <div class="box">
+    <div class="t"><code>input</code></div>
+    <div class="d">the JSON you're asking about, e.g. <code>{"age": 21}</code></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="box policy">
+    <div class="t">policy (rules)</div>
+    <div class="d">your <code>.rego</code> definitions</div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="box">
+    <div class="t">decision</div>
+    <div class="d">a value: boolean, message, object…</div>
+  </div>
+</div>
+
+<p>
+  OPA sees the world as JSON documents. Two of them matter now:
+</p>
+
+<dl class="defrow">
+  <dt><code>input</code></dt>
+  <dd>The data for <em>this</em> question, handed in by the caller at query time.</dd>
+  <dt><code>data</code></dt>
+  <dd>Persistent, pre-loaded context available everywhere (e.g. a legal minimum age, a list of approved registries). Optional; you may not need it at first.</dd>
+</dl>
+
+<p>
+  Everything in the file is built from <strong>rules</strong>. The docs define them
+  precisely: <a href="https://www.openpolicyagent.org/docs/policy-language">"rules define
+  the content of virtual documents… When OPA evaluates a rule, OPA <em>generates</em> the
+  content of the document that is defined by the rule."</a> Here is a complete policy —
+  an age check. Read it as a definition, not a procedure:
+</p>
+
+<pre><code><span class="tok-kw">package</span> example
+
+<span class="tok-com"># allow is false unless a rule below proves otherwise</span>
+<span class="tok-kw">default</span> allow := <span class="tok-kw">false</span>
+
+<span class="tok-com"># allow becomes true when the applicant is an adult</span>
+allow <span class="tok-kw">if</span> input.age &gt;= 18</code></pre>
+
+<p>
+  That's the whole policy. Two pieces beyond the package:
+</p>
+
+<dl class="defrow">
+  <dt><code>allow if …</code></dt>
+  <dd>A <strong>rule</strong>. Its body (<code>input.age &gt;= 18</code>) is the condition. OPA <a href="https://www.openpolicyagent.org/docs/policy-language">"searches for variable bindings that make all of the expressions true."</a> If it can, <code>allow</code> gets the value <code>true</code>.</dd>
+  <dt><code>default allow</code></dt>
+  <dd>The fallback. When the rule body can't be satisfied, the rule produces <strong>no value</strong> — it's <em>undefined</em>. <code>default</code> supplies <code>false</code> so the policy always answers.</dd>
+</dl>
+
+<p>
+  Notice what's <em>absent</em>: no loop, no <code>else</code> ladder, no <code>return</code>.
+  You describe <em>what makes <code>allow</code> true</em>; OPA does the searching. And note
+  the crucial subtlety: without that <code>default</code> line, an applicant aged 16 doesn't
+  make <code>allow</code> <em>false</em> — it makes it <strong>undefined</strong>. Undefined
+  is Rego's quiet "this doesn't apply / no answer", and it is <em>not</em> the same as false.
+</p>
+
+<div class="quiz">
+  <p class="q">With the <code>default</code> line removed, what is <code>allow</code> for <code>{"age": 16}</code>?</p>
+  <div class="opts">
+    <button class="opt">The boolean false, because the age condition evaluated as false.</button>
+    <button class="opt">A runtime error, because the rule body could not be satisfied.</button>
+    <button class="opt" data-correct>Undefined — the body fails, so the rule yields no value.</button>
+  </div>
+  <div class="explain">
+    <strong>Undefined, not false.</strong> <code>input.age &gt;= 18</code> can't be made true,
+    so the rule generates nothing. <code>allow</code> is undefined. Adding
+    <code>default allow := false</code> is what turns "no answer" into a usable <code>false</code>.
+  </div>
+</div>
+
+<h2>3. Run it with <code>opa</code></h2>
+
+<p>
+  The document a rule generates lives at <code>data.&lt;package&gt;.&lt;rule&gt;</code> — here,
+  <code>data.example.allow</code>. That path is how you <em>ask</em> OPA for the decision.
+  Create two files:
+</p>
+
+<pre><code><span class="tok-com"># policy.rego</span>
+<span class="tok-kw">package</span> example
+
+<span class="tok-kw">default</span> allow := <span class="tok-kw">false</span>
+
+allow <span class="tok-kw">if</span> input.age &gt;= 18</code></pre>
+
+<pre><code><span class="tok-com"># input.json</span>
+{ <span class="tok-str">"age"</span>: 21 }</code></pre>
+
+<p>Then evaluate the decision:</p>
+
+<pre><code>opa eval -d policy.rego -i input.json <span class="tok-str">'data.example.allow'</span> --format pretty</code></pre>
+
+<p>Output:</p>
+<pre><code>true</code></pre>
+
+<p>
+  Change <code>age</code> to <code>16</code> and re-run: you get <code>false</code> (thanks to
+  <code>default</code>). Delete the <code>default</code> line and run the 16 case again: you
+  get <code>undefined</code> — exactly the quiz above, now on your own machine.
+  <strong>That loop — edit input, re-run, watch the decision change — is how you'll learn Rego.</strong>
+</p>
+
+<div class="tip">
+  <span class="label">Read the whole document</span>
+  Ask for the package instead of one rule — <code>opa eval -d policy.rego -i input.json 'data.example'</code>
+  — and OPA prints every document the file generates: <code>{ "allow": true }</code>. A
+  <code>.rego</code> file <em>is</em> the document tree it defines.
+</div>
+
+<h2>4. The tools to practice with</h2>
+
+<dl class="defrow">
+  <dt><a href="https://play.openpolicyagent.org/">Rego&nbsp;Playground</a></dt>
+  <dd>Browser REPL. Paste policy + input, see the decision instantly. Zero install — the fastest way to experiment and to share a snippet with a coworker.</dd>
+  <dt><code>opa</code></dt>
+  <dd>The engine, and your main tool for this course. <code>opa eval</code> (evaluate any expression), <code>opa fmt</code> (auto-format to current syntax), <code>opa test</code> (unit-test policies).</dd>
+</dl>
+
+<div class="note">
+  <span class="label">Where conftest fits (later)</span>
+  <a href="https://www.conftest.dev/">Conftest</a> is a thin wrapper that runs OPA for you:
+  it parses config files (YAML, Dockerfile, HCL…) into <code>input</code> and applies a
+  naming convention. It's your eventual pipeline tool — but it's <em>just OPA underneath</em>.
+  Learn the engine first; we'll add conftest once the Rego fundamentals are solid.
+</div>
+
+<h3>Install <code>opa</code> (Linux)</h3>
+<pre><code>curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+chmod +x opa &amp;&amp; sudo mv opa /usr/local/bin/
+opa version</code></pre>
+
+<div class="note">
+  <span class="label">Syntax note — OPA 1.0</span>
+  Since <a href="https://www.openpolicyagent.org/blog/announcing-opa-1-0-a-new-standard-for-policy-as-code-a6d8427ee828">OPA
+  1.0</a>, <code>if</code> before a rule body is the default, required syntax (constants like
+  <code>default allow := false</code> need no <code>if</code>). Older tutorials omit it — run
+  <code>opa fmt</code> and it'll flag them. We'll always use the modern form.
+</div>
+
+<div class="quiz">
+  <p class="q">Which command asks OPA for the decision computed by the <code>allow</code> rule?</p>
+  <div class="opts">
+    <button class="opt"><code>opa run policy.rego --input input.json --rule allow</code></button>
+    <button class="opt" data-correct><code>opa eval -d policy.rego -i input.json 'data.example.allow'</code></button>
+    <button class="opt"><code>opa check policy.rego --with input.json --get allow</code></button>
+  </div>
+  <div class="explain">
+    <strong><code>opa eval</code></strong> evaluates an expression. <code>-d</code> loads the
+    policy, <code>-i</code> supplies <code>input</code>, and the query
+    <code>data.example.allow</code> is the path to the document your rule generates.
+  </div>
+</div>
+
+<div class="source">
+  <span class="label">Primary source — read this next</span>
+  <a href="https://www.openpolicyagent.org/docs/philosophy">OPA Docs — Philosophy</a>. Short,
+  authoritative, and the clearest statement of the <em>why</em>. Then skim the top of the
+  <a href="https://www.openpolicyagent.org/docs/policy-language">Policy Language</a> reference
+  for the rule/document vocabulary.
+</div>
+
+<div class="ask">
+  <strong>I'm your teacher — ask me.</strong> Stuck on why a body is "undefined" instead of
+  "false"? Want a policy translated line by line? Curious how <code>data</code> differs from
+  <code>input</code> in practice? Ask, and I'll build the next lesson around it.
+</div>
+
+<div class="lesson-nav">
+  <span><a href="../reference/rego-toolbox.html">→ Reference: Rego mental model &amp; toolbox</a></span>
+  <span><a href="index.html">Course index</a></span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+<script src="../assets/copy-code.js"></script>

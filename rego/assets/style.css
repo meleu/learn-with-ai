@@ -1,179 +1,249 @@
-/* Shared course stylesheet — every lesson and reference doc links this. */
+/* ============================================================
+   Shared course stylesheet — Rego / OPA
+   Tufte-inspired: readable serif body, generous margins,
+   restrained palette, prints cleanly.
+   ============================================================ */
+
 :root {
-  --bg: #fffff8;
-  --fg: #111;
-  --muted: #666;
-  --accent: #b3592a;      /* warm rust — links, highlights */
-  --code-bg: #f4f2ec;
-  --border: #ddd8cc;
-  --good: #2a7a3b;
-  --bad: #b3382a;
-  font-size: 1.3rem;
+  --bg:        #fdfdfb;
+  --ink:       #201c18;
+  --ink-soft:  #55504a;
+  --rule:      #e3ded6;
+  --accent:    #7a1f12;   /* deep brick — links, emphasis */
+  --accent-2:  #1f5673;   /* slate blue — diagrams, secondary */
+  --code-bg:   #f4f1ea;
+  --code-ink:  #2c2620;
+  --good:      #2f6f3e;
+  --bad:       #9a2617;
+  --warn:      #8a6d1a;
+  --card-bg:   #f7f4ee;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans:  ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono:  ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
 }
+
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #151513;
-    --fg: #e8e6df;
-    --muted: #999;
-    --accent: #e08e5a;
-    --code-bg: #23221e;
-    --border: #3a3830;
-    --good: #6fbf7e;
-    --bad: #e07a6d;
+    --bg:       #1a1815;
+    --ink:      #ece7df;
+    --ink-soft: #b1a99d;
+    --rule:     #3a352e;
+    --accent:   #e88a6f;
+    --accent-2: #7fb6d4;
+    --code-bg:  #24211c;
+    --code-ink: #e4ded3;
+    --good:     #7fc08a;
+    --bad:      #e8897a;
+    --warn:     #d6b866;
+    --card-bg:  #232019;
   }
 }
 
 * { box-sizing: border-box; }
+
+html { font-size: 1.5rem; -webkit-text-size-adjust: 100%; }
+
 body {
-  margin: 0 auto;
-  padding: 2rem 1.25rem 5rem;
-  max-width: 42rem;
   background: var(--bg);
-  color: var(--fg);
-  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--ink);
+  font-family: var(--serif);
   line-height: 1.55;
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 6rem;
 }
 
-h1, h2, h3 { font-weight: 500; line-height: 1.2; }
-h1 { font-size: 1.9rem; margin: 0 0 0.25rem; }
-h2 { font-size: 1.35rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
-h3 { font-size: 1.1rem; margin-top: 1.8rem; }
+/* ---------- Kicker / breadcrumb ---------- */
+.kicker {
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 0.6rem;
+}
+.kicker a { color: var(--ink-soft); }
 
-.lesson-meta {
-  color: var(--muted);
-  font-style: italic;
-  margin-bottom: 2rem;
+/* ---------- Headings ---------- */
+h1, h2, h3 { font-family: var(--sans); line-height: 1.2; font-weight: 650; }
+h1 { font-size: 2.05rem; margin: 0 0 0.4rem; letter-spacing: -0.01em; }
+h2 {
+  font-size: 1.3rem; margin: 2.8rem 0 0.8rem;
+  padding-top: 0.9rem; border-top: 1px solid var(--rule);
+}
+h3 { font-size: 1.02rem; margin: 1.8rem 0 0.5rem; color: var(--ink-soft); }
+
+.subtitle {
+  font-family: var(--sans);
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  font-weight: 400;
+  margin: 0 0 2rem;
 }
 
-a { color: var(--accent); }
-a:hover { text-decoration-thickness: 2px; }
+p { margin: 0 0 1rem; }
+strong { font-weight: 650; }
 
-code, pre {
-  font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
-  font-size: 0.85em;
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+a:hover { border-bottom-color: var(--accent); }
+
+/* ---------- Lists ---------- */
+ul, ol { margin: 0 0 1rem; padding-left: 1.3rem; }
+li { margin: 0.3rem 0; }
+
+/* ---------- Code ---------- */
+code {
+  font-family: var(--mono);
+  font-size: 0.86em;
   background: var(--code-bg);
+  color: var(--code-ink);
+  padding: 0.1em 0.35em;
   border-radius: 4px;
 }
-code { padding: 0.1em 0.35em; }
 pre {
   position: relative;
-  padding: 0.9rem 1.1rem;
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  line-height: 1.45;
-}
-
-/* copy button (used with copy-code.js) */
-pre .copy-btn {
-  position: absolute;
-  top: 0.4rem;
-  right: 0.4rem;
-  padding: 0.15rem 0.55rem;
-  font-family: system-ui, sans-serif;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-pre:hover .copy-btn, pre .copy-btn:focus-visible { opacity: 1; }
-pre .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
-pre .copy-btn.done { color: var(--good); border-color: var(--good); opacity: 1; }
-pre code { padding: 0; background: none; }
-
-/* code annotation comments */
-pre .cm { color: var(--muted); }
-pre .hl { color: var(--accent); font-weight: bold; }
-
-blockquote {
-  margin: 1.5rem 0;
-  padding: 0.1rem 1.25rem;
-  border-left: 3px solid var(--accent);
-  color: var(--muted);
-  font-style: italic;
-}
-
-table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
-th, td { text-align: left; padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--border); }
-th { font-family: system-ui, sans-serif; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
-
-.aside {
   background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.8rem 1.1rem;
+  color: var(--code-ink);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  padding: 1rem 1.1rem;
+  border-radius: 8px;
+  border: 1px solid var(--rule);
+  overflow-x: auto;
+  margin: 0 0 1.2rem;
+}
+pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+
+/* syntax accents (applied via spans) */
+.tok-kw   { color: var(--accent); font-weight: 600; }
+.tok-str  { color: var(--good); }
+.tok-com  { color: var(--ink-soft); font-style: italic; }
+.tok-fn   { color: var(--accent-2); }
+
+/* ---------- Callouts ---------- */
+.note, .why, .tip {
+  font-family: var(--sans);
   font-size: 0.92rem;
+  border-left: 3px solid var(--accent-2);
+  background: var(--card-bg);
+  padding: 0.8rem 1rem;
+  border-radius: 0 6px 6px 0;
+  margin: 0 0 1.3rem;
+}
+.note  { border-left-color: var(--accent-2); }
+.tip   { border-left-color: var(--good); }
+.why   { border-left-color: var(--accent); }
+.note .label, .why .label, .tip .label {
+  display: block;
+  font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-soft); margin-bottom: 0.25rem;
+}
+
+/* ---------- Mental-model diagram ---------- */
+.flow {
+  font-family: var(--sans);
+  display: flex; align-items: stretch; gap: 0.5rem;
+  flex-wrap: wrap;
   margin: 1.5rem 0;
 }
-.aside::before {
-  content: attr(data-label);
-  display: block;
-  font-family: system-ui, sans-serif;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--accent);
-  margin-bottom: 0.3rem;
+.flow .box {
+  flex: 1 1 0; min-width: 7rem;
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 0.8rem;
+  text-align: center;
 }
+.flow .box .t { font-weight: 650; font-size: 0.92rem; }
+.flow .box .d { font-size: 0.76rem; color: var(--ink-soft); margin-top: 0.2rem; }
+.flow .box.policy { border-color: var(--accent); border-width: 2px; }
+.flow .arrow { align-self: center; color: var(--ink-soft); font-size: 1.4rem; }
+.flow .box code { font-size: 0.8rem; }
 
-.win {
-  border: 2px solid var(--good);
-  border-radius: 6px;
-  padding: 0.9rem 1.2rem;
-  margin: 2rem 0;
+/* ---------- Definition rows ---------- */
+.defrow {
+  display: grid; grid-template-columns: 8rem 1fr; gap: 0.4rem 1rem;
+  font-family: var(--sans); font-size: 0.92rem;
+  margin: 1rem 0;
 }
-.win::before {
-  content: "✓ Your win for this lesson";
-  display: block;
-  font-family: system-ui, sans-serif;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--good);
-  margin-bottom: 0.3rem;
-}
+.defrow dt { font-weight: 650; }
+.defrow dt code { font-size: 0.85rem; }
+.defrow dd { margin: 0; color: var(--ink-soft); }
 
-.nav-footer {
-  margin-top: 3.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
-  font-family: system-ui, sans-serif;
-  font-size: 0.85rem;
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-/* ---- quiz widget (used with quiz.js) ---- */
+/* ---------- Quiz widget (see assets/quiz.js) ---------- */
 .quiz {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 1rem 1.25rem;
-  margin: 1.25rem 0;
-  font-family: system-ui, sans-serif;
-  font-size: 0.95rem;
+  font-family: var(--sans);
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 1.1rem 1.2rem;
+  margin: 1.6rem 0;
 }
-.quiz p.q { font-weight: 600; margin: 0 0 0.6rem; }
+.quiz .qnum {
+  font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-soft); margin-bottom: 0.4rem;
+}
+.quiz .q { font-weight: 650; margin: 0 0 0.8rem; font-family: var(--sans); }
+.quiz .opts { display: flex; flex-direction: column; gap: 0.5rem; }
 .quiz button.opt {
-  display: block;
-  width: 100%;
-  text-align: left;
-  margin: 0.35rem 0;
-  padding: 0.5rem 0.8rem;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  background: var(--bg);
-  color: var(--fg);
-  font: inherit;
-  cursor: pointer;
+  font-family: var(--sans); font-size: 0.92rem; text-align: left;
+  color: var(--ink); background: var(--bg);
+  border: 1px solid var(--rule); border-radius: 7px;
+  padding: 0.6rem 0.8rem; cursor: pointer; transition: border-color .15s, background .15s;
 }
-.quiz button.opt:hover { border-color: var(--accent); }
-.quiz button.opt.correct { border-color: var(--good); outline: 2px solid var(--good); }
-.quiz button.opt.wrong { border-color: var(--bad); outline: 2px solid var(--bad); }
-.quiz .feedback { margin-top: 0.6rem; font-size: 0.88rem; display: none; }
-.quiz .feedback.show { display: block; }
+.quiz button.opt:hover:not(:disabled) { border-color: var(--accent-2); }
+.quiz button.opt:disabled { cursor: default; opacity: 0.75; }
+.quiz button.opt.correct   { border-color: var(--good); background: color-mix(in srgb, var(--good) 12%, var(--bg)); opacity: 1; }
+.quiz button.opt.incorrect { border-color: var(--bad);  background: color-mix(in srgb, var(--bad) 12%, var(--bg)); opacity: 1; }
+.quiz .explain {
+  display: none; margin-top: 0.9rem; padding-top: 0.8rem;
+  border-top: 1px dashed var(--rule); font-size: 0.9rem; color: var(--ink-soft);
+}
+.quiz .explain.show { display: block; }
+.quiz .explain strong { color: var(--ink); }
+
+/* ---------- Copy button (see assets/copy-code.js) ---------- */
+.copy-btn {
+  position: absolute; top: 0.5rem; right: 0.5rem;
+  font-family: var(--sans); font-size: 0.68rem;
+  background: var(--bg); color: var(--ink-soft);
+  border: 1px solid var(--rule); border-radius: 5px;
+  padding: 0.2rem 0.5rem; cursor: pointer; opacity: 0; transition: opacity .15s;
+}
+pre:hover .copy-btn { opacity: 1; }
+.copy-btn.copied { color: var(--good); border-color: var(--good); }
+
+/* ---------- Footer / nav ---------- */
+.lesson-nav {
+  margin-top: 3.5rem; padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--sans); font-size: 0.9rem;
+  display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+}
+.ask {
+  font-family: var(--sans); font-size: 0.92rem;
+  background: var(--card-bg); border: 1px dashed var(--rule);
+  border-radius: 8px; padding: 0.9rem 1.1rem; margin: 2.5rem 0 0;
+}
+.ask strong { color: var(--accent); }
+
+.source {
+  font-family: var(--sans); font-size: 0.9rem;
+  background: var(--card-bg); border-left: 3px solid var(--good);
+  border-radius: 0 6px 6px 0; padding: 0.8rem 1rem; margin: 1.5rem 0;
+}
+.source .label { display:block; font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:0.25rem; }
+
+/* ---------- Print ---------- */
+@media print {
+  :root {
+    --bg:#fff; --ink:#000; --ink-soft:#333; --rule:#ccc;
+    --code-bg:#f2f2f2; --code-ink:#000; --card-bg:#f7f7f7;
+  }
+  body { max-width: none; padding: 0; font-size: 11pt; }
+  h2 { page-break-after: avoid; }
+  pre, .flow, .quiz, table { page-break-inside: avoid; }
+  .lesson-nav, .ask, .copy-btn { display: none; }
+  a { color: #000; border: none; }
+}

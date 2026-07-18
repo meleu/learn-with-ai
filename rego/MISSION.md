@@ -1,19 +1,23 @@
-# Mission: Rego (Open Policy Agent)
+# Mission: Rego (Open Policy Agent) for pipeline policy-as-code
 
 ## Why
-Write conftest policies that validate project configurations at work — Kubernetes manifests, CI/CD pipelines, Dockerfiles, app config files (JSON/YAML), and `pom.xml`. Beyond writing policies, teach coworkers how Rego works, which demands a solid foundation, not just copy-paste recipes.
+Author and maintain Rego policies (run via conftest) that validate the configuration
+of hundreds of microservices inside the build/deploy pipelines you own — and be fluent
+enough in the fundamentals to teach your coworkers how to write and reason about them.
 
 ## Success looks like
-- Write a conftest `deny`/`warn`/`violation` policy from scratch for any of the target config formats
-- Explain to a coworker *why* a Rego rule evaluates the way it does (declarative/Datalog semantics)
-- Run and debug policies locally with `opa eval`, the REPL, and `opa test`
-- Ship a policy suite with unit tests that runs in CI at work
+- Explain, to a coworker, why Rego/OPA exists and what problem policy decoupling solves.
+- Read a `.rego` file and correctly describe what decision it computes for a given input.
+- Write a conftest policy (`deny`/`warn`) that catches a real misconfiguration in a YAML/JSON/Dockerfile.
+- Run and debug policies locally with `conftest` and `opa` (eval, fmt, test).
+- Onboard a coworker: point them at a lesson/reference and answer their questions.
 
 ## Constraints
-- Learning tools must run locally (CLI-first workflow)
-- Needs teaching-quality understanding — "it works" isn't enough; must be explainable
+- Learner is an experienced DevOps engineer (pipelines, YAML, containers) — comfortable with CLIs and JSON.
+- New to Rego's declarative model; wants a solid conceptual foundation before writing production rules.
+- Must be teachable onward — clarity and transferable mental models matter more than clever one-liners.
 
-## Out of scope
-- Running OPA as a server / REST API / sidecar deployments
-- Gatekeeper / admission controllers (unless mission shifts)
-- Envoy / service mesh authorization
+## Out of scope (for now)
+- OPA as a long-running server / REST API and bundle distribution.
+- OPA/Gatekeeper admission control in Kubernetes (may revisit later).
+- Advanced Rego: comprehensions-heavy metaprogramming, custom built-ins, WASM.

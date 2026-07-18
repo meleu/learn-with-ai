@@ -1,38 +1,28 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Rego Course · Lessons</title>
-  <link rel="stylesheet" href="../assets/style.css">
-  <style>
-    ol.lessons { list-style: none; padding: 0; margin: 2rem 0; }
-    ol.lessons li { margin: 0.6rem 0; }
-    ol.lessons a { display: block; padding: 0.9rem 1.1rem; border: 1px solid var(--border); border-radius: 6px; text-decoration: none; color: var(--fg); }
-    ol.lessons a:hover { border-color: var(--accent); }
-    ol.lessons .num { font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 0.8rem; color: var(--muted); }
-    ol.lessons .title { display: block; font-size: 1.15rem; color: var(--accent); margin-top: 0.15rem; }
-  </style>
-</head>
-<body>
-  <h1>Learning Rego</h1>
-  <p class="lesson-meta">Mission: writing conftest policies at work</p>
+<meta charset="utf-8">
+<title>Rego Course — Index</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
 
-  <ol class="lessons">
-    <li>
-      <a href="0001-why-rego-and-hello-world.html">
-        <span class="num">Lesson 0001 · ~15 min</span>
-        <span class="title">Why Rego Exists — and Your First Policy</span>
-      </a>
-    </li>
-    <li>
-      <a href="0002-why-conftest-exists.html">
-        <span class="num">Lesson 0002 · ~15 min</span>
-        <span class="title">Why conftest Exists</span>
-      </a>
-    </li>
-  </ol>
+<p class="kicker">Learn With AI</p>
+<h1>Rego for Pipeline Policy-as-Code</h1>
+<p class="subtitle">A hands-on course for validating microservice configs with conftest &amp; OPA.</p>
 
-  <p class="lesson-meta">Ask your teacher any follow-up questions — that's what I'm here for.</p>
-</body>
-</html>
+<div class="why">
+  <span class="label">Mission</span>
+  Author and maintain Rego policies (via conftest) that validate hundreds of microservices
+  in your pipelines — and be fluent enough to teach your coworkers.
+  <span style="display:block;margin-top:0.4rem;font-size:0.85rem">See <a href="../MISSION.md">MISSION.md</a>.</span>
+</div>
+
+<h2>Lessons</h2>
+<ol>
+  <li>
+    <a href="0001-the-rego-mental-model.html">The Rego Mental Model</a>
+    — why Rego exists, what a <code>.rego</code> file really is (pure Rego + <code>opa eval</code>).
+  </li>
+</ol>
+
+<h2>Reference</h2>
+<ul>
+  <li><a href="../reference/rego-toolbox.html">Rego Mental Model &amp; Toolbox</a> — one-page card: glossary, conftest convention, CLI cheat sheet.</li>
+</ul>

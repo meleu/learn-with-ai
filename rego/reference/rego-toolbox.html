@@ -1,65 +1,114 @@
 <meta charset="utf-8">
+<title>Reference — Rego Mental Model &amp; Toolbox</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reference · Rego Toolbox</title>
 <link rel="stylesheet" href="../assets/style.css">
 
-<h1>Rego Toolbox</h1>
-<p class="lesson-meta">Reference sheet · local tooling &amp; minimal syntax</p>
+<p class="kicker"><a href="../lessons/index.html">Rego Course</a> &nbsp;·&nbsp; Reference</p>
+<h1>Rego Mental Model &amp; Toolbox</h1>
+<p class="subtitle">A one-page card to revisit. Compressed essence of Lesson 1.</p>
 
-<h2>CLI commands</h2>
-<table>
-  <tr><th>Command</th><th>Purpose</th></tr>
-  <tr><td><code>opa eval --data policy.rego 'data.pkg.rule'</code></td><td>Evaluate a query against policies (<code>-d</code>)</td></tr>
-  <tr><td><code>opa eval --input file.json --data policy.rego 'query'</code></td><td><code>input</code> from a JSON/YAML file (<code>-i</code>)</td></tr>
-  <tr><td><code>opa eval --stdin-input --data policy.rego 'query'</code></td><td><code>input</code> from stdin (<code>-I</code>)</td></tr>
-  <tr><td><code>opa eval ... --format raw</code></td><td>Plain output instead of JSON envelope</td></tr>
-  <tr><td><code>opa run policy.rego</code></td><td>Interactive REPL for experimenting</td></tr>
-  <tr><td><code>opa test .</code></td><td>Run unit tests (<code>*_test.rego</code>)</td></tr>
-  <tr><td><code>opa fmt --write policy.rego</code></td><td>Auto-format in place (<code>-w</code>)</td></tr>
-  <tr><td><code>opa check policy.rego</code></td><td>Syntax/type check without evaluating</td></tr>
-  <tr><td><code>conftest test config.yaml</code></td><td>Apply <code>policy/*.rego</code> to a config file</td></tr>
-  <tr><td><code>conftest parse Dockerfile</code></td><td>Show the JSON that a file becomes (the future <code>input</code>)</td></tr>
-  <tr><td><code>conftest test --policy dir/ --namespace pkg file</code></td><td>Override policy dir (default <code>./policy/</code>) and package (default <code>main</code>)</td></tr>
-</table>
-
-<h2>conftest exit codes</h2>
-<table>
-  <tr><th>Result</th><th>Default</th><th>With <code>--fail-on-warn</code></th></tr>
-  <tr><td>All pass</td><td>0</td><td>0</td></tr>
-  <tr><td>Warnings only</td><td>0</td><td>1</td></tr>
-  <tr><td>Any failure</td><td>1</td><td>2</td></tr>
-</table>
-
-<h2>Minimal policy anatomy</h2>
-<pre><code><span class="hl">package</span> hello                     <span class="cm"># namespace → data.hello</span>
-
-greeting := "Hello, Rego!"        <span class="cm"># constant rule</span>
-
-allow <span class="hl">if</span> input.role == "admin"   <span class="cm"># boolean rule; undefined when body fails</span>
-
-deny <span class="hl">contains</span> msg <span class="hl">if</span> {            <span class="cm"># set rule: collects messages (conftest style)</span>
-    input.kind == "Deployment"
-    msg := "some violation text"
-}</code></pre>
-
-<h2>Key facts</h2>
-<ul>
-  <li><code>input</code> = the JSON document under judgment; <code>data</code> = policies + external data.</li>
-  <li>Rule body lines are ANDed. Multiple definitions of the same rule = OR.</li>
-  <li>A boolean rule whose body fails is <strong>undefined</strong>, not <code>false</code> (use <code>default allow := false</code> to get a real <code>false</code>).</li>
-  <li>OPA ≥ 1.0: <code>if</code> and <code>contains</code> keywords are <strong>mandatory</strong>. Distrust older tutorials.</li>
-  <li>conftest convention: package <code>main</code>, rules named <code>deny</code>/<code>warn</code>/<code>violation</code> (suffixes allowed: <code>deny_no_root</code>).</li>
-</ul>
-
-<h2>Links</h2>
-<ul>
-  <li><a href="https://www.openpolicyagent.org/docs/policy-language">Policy Language docs</a> — the authoritative reference</li>
-  <li><a href="https://www.conftest.dev/">conftest docs</a> · <a href="https://play.openpolicyagent.org/">Rego Playground</a></li>
-  <li><a href="https://www.openpolicyagent.org/docs#running-opa">Install OPA</a> · <a href="https://www.conftest.dev/install/">Install conftest</a></li>
-</ul>
-
-<div class="nav-footer">
-  <span><a href="../lessons/0001-why-rego-and-hello-world.html">← Lesson 0001</a></span>
+<h2>The one-sentence model</h2>
+<div class="why">
+  A <code>.rego</code> file is a set of <strong>declarative definitions</strong> that, given
+  an <code>input</code> document, <strong>computes a decision</strong>. It decides; something
+  else enforces.
 </div>
 
-<script src="../assets/copy-code.js"></script>
+<div class="flow">
+  <div class="box"><div class="t"><code>input</code></div><div class="d">JSON in</div></div>
+  <div class="arrow">→</div>
+  <div class="box policy"><div class="t">rules</div><div class="d">your policy</div></div>
+  <div class="arrow">→</div>
+  <div class="box"><div class="t">decision</div><div class="d">value out</div></div>
+</div>
+
+<h2>Glossary</h2>
+<dl class="defrow">
+  <dt>Policy decoupling</dt>
+  <dd>Moving policy decisions out of application code into a dedicated engine (OPA). The reason OPA exists.</dd>
+  <dt>Decision</dt>
+  <dd>The value OPA computes (e.g. <code>allow = true</code>). OPA never acts on it.</dd>
+  <dt>Enforcement</dt>
+  <dd>Acting on the decision — done by the caller (your app, your pipeline).</dd>
+  <dt><code>input</code></dt>
+  <dd>The document being evaluated, supplied per query with <code>opa eval -i</code>.</dd>
+  <dt><code>data</code></dt>
+  <dd>Persistent, pre-loaded context (config, lookup tables) available to every rule.</dd>
+  <dt>Rule</dt>
+  <dd>A definition that <em>generates the content of a document</em>. The unit everything is built from.</dd>
+  <dt>Rule body</dt>
+  <dd>Conditions joined by AND. OPA looks for variable bindings that make them all true.</dd>
+  <dt>Undefined</dt>
+  <dd>The result when a rule body can't be satisfied. <strong>Not</strong> <code>false</code> — it means "no value / doesn't apply".</dd>
+  <dt>Complete rule</dt>
+  <dd>Produces a single value (e.g. <code>allow</code>). Conflicting values → error.</dd>
+  <dt>Partial rule</dt>
+  <dd>Builds a set or object incrementally; multiple definitions union together. (Later lesson.)</dd>
+  <dt>Package</dt>
+  <dd>Namespace for a module. The rule <code>allow</code> in <code>package example</code> lives at <code>data.example.allow</code>.</dd>
+  <dt><code>default</code></dt>
+  <dd>Fallback value for a complete rule when all its bodies are undefined.</dd>
+</dl>
+
+<h2>Canonical policy shape (OPA 1.0)</h2>
+<pre><code><span class="tok-kw">package</span> example
+
+<span class="tok-com"># fallback so the rule always answers</span>
+<span class="tok-kw">default</span> allow := <span class="tok-kw">false</span>
+
+<span class="tok-com"># allow is true when the body can be satisfied</span>
+allow <span class="tok-kw">if</span> input.age &gt;= 18</code></pre>
+<p style="font-family:var(--sans);font-size:0.85rem;color:var(--ink-soft);margin-top:-0.6rem">
+  <code>if</code> = the rule has a body · constants (<code>default …</code>) need no <code>if</code> ·
+  no <code>default</code> ⇒ a failing body yields <em>undefined</em>, not <code>false</code>.
+</p>
+
+<h2>The three outcomes of a complete rule</h2>
+<dl class="defrow">
+  <dt>true</dt>
+  <dd>Body satisfied → rule takes its value.</dd>
+  <dt>false</dt>
+  <dd>Only if a <code>default</code> (or another body) supplies it.</dd>
+  <dt>undefined</dt>
+  <dd>Body fails and no default → no value at all. <code>opa eval --format pretty</code> prints <code>undefined</code>.</dd>
+</dl>
+
+<h2>CLI cheat sheet (opa)</h2>
+<pre><code><span class="tok-com"># evaluate a decision</span>
+opa eval -d policy.rego -i input.json <span class="tok-str">'data.example.allow'</span> --format pretty
+opa eval -d policy.rego -i input.json <span class="tok-str">'data.example'</span>   <span class="tok-com"># whole doc tree</span>
+
+<span class="tok-com"># interactive REPL (great for exploring)</span>
+opa run policy.rego                        <span class="tok-com"># then type expressions</span>
+
+<span class="tok-com"># format &amp; test</span>
+opa fmt -w policy.rego                     <span class="tok-com"># rewrite to 1.0 style</span>
+opa test .                                 <span class="tok-com"># run *_test.rego unit tests</span>
+opa version</code></pre>
+
+<div class="note">
+  <span class="label">Debugging tip</span>
+  Got <code>undefined</code> when you expected a value? Ask for the parent path
+  (<code>data.example</code>) or a sub-expression to see how far evaluation got. Most
+  surprises are a wrong path into <code>input</code>, not wrong logic.
+</div>
+
+<div class="note">
+  <span class="label">Conftest — coming later</span>
+  Conftest wraps OPA: it parses config files into <code>input</code> and looks for rules
+  named <code>deny</code>/<code>warn</code>/<code>violation</code> in package <code>main</code>.
+  It's the pipeline tool, but it's just OPA underneath — this card stays true when you get there.
+</div>
+
+<h2>Sources</h2>
+<ul style="font-family:var(--sans);font-size:0.9rem">
+  <li><a href="https://www.openpolicyagent.org/docs/philosophy">OPA — Philosophy</a> (the why)</li>
+  <li><a href="https://www.openpolicyagent.org/docs/policy-language">OPA — Policy Language</a> (rules, documents)</li>
+  <li><a href="https://www.openpolicyagent.org/blog/announcing-opa-1-0-a-new-standard-for-policy-as-code-a6d8427ee828">Announcing OPA 1.0</a> (modern syntax)</li>
+  <li><a href="https://www.conftest.dev/">Conftest docs</a> (for later)</li>
+</ul>
+
+<div class="lesson-nav">
+  <span><a href="../lessons/0001-the-rego-mental-model.html">← Lesson 1</a></span>
+  <span><a href="../lessons/index.html">Course index</a></span>
+</div>
