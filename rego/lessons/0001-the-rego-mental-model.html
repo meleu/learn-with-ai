@@ -202,9 +202,12 @@ allow <span class="tok-kw">if</span> input.age &gt;= 18</code></pre>
   Learn the engine first; we'll add conftest once the Rego fundamentals are solid.
 </div>
 
-<h3>Install <code>opa</code> (Linux)</h3>
-<pre><code>curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
-chmod +x opa &amp;&amp; sudo mv opa /usr/local/bin/
+<h3>Install <code>opa</code> with Homebrew</h3>
+<p>
+  We use <a href="https://brew.sh/">Homebrew</a> for tool installs — including on Linux —
+  so everyone on your team runs the same one-liner and gets updates the same way:
+</p>
+<pre><code>brew install opa
 opa version</code></pre>
 
 <div class="note">
@@ -237,10 +240,18 @@ opa version</code></pre>
   for the rule/document vocabulary.
 </div>
 
-<div class="ask">
-  <strong>I'm your teacher — ask me.</strong> Stuck on why a body is "undefined" instead of
-  "false"? Want a policy translated line by line? Curious how <code>data</code> differs from
-  <code>input</code> in practice? Ask, and I'll build the next lesson around it.
+<div class="takeaways">
+  <span class="label">Main takeaways</span>
+  <ul>
+    <li><strong>Policy decoupling</strong> is the reason Rego exists: pull decisions out of application code into a versioned, testable engine.</li>
+    <li><strong>Decision vs. enforcement.</strong> Rego only computes a verdict; the caller acts on it. Rego never blocks, deletes, or deploys.</li>
+    <li>A <code>.rego</code> file isn't a script — it's <strong>declarative definitions</strong> that compute a value from <code>input</code>, like a pure function.</li>
+    <li><code>input</code> is the data for this question; <code>data</code> is persistent, pre-loaded context.</li>
+    <li>A <strong>rule</strong> (<code>allow if …</code>) yields its value when OPA can satisfy the body; <code>default</code> supplies a fallback so the policy always answers.</li>
+    <li><strong>Undefined ≠ false.</strong> Without a <code>default</code>, an unsatisfied body produces <em>no value</em>, not <code>false</code>.</li>
+    <li>Ask OPA for a decision at <code>data.&lt;package&gt;.&lt;rule&gt;</code> with <code>opa eval -d policy.rego -i input.json 'data.example.allow'</code>.</li>
+    <li>The core learning loop: <strong>edit input → re-run → watch the decision change</strong>.</li>
+  </ul>
 </div>
 
 <div class="lesson-nav">

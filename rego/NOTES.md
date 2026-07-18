@@ -11,6 +11,7 @@
 - Ground every claim in RESOURCES.md sources; cite inline in lessons.
 - Use OPA 1.0 / Rego v1 syntax everywhere (`if`, `contains`). Never post deprecated syntax.
 - Lessons stay short; one win each; tight edit-run-observe feedback loops.
+- At the end of each lesson, list the main takeaways of that lesson in concise bullet points.
 - **Teach pure Rego with `opa` first; defer conftest.** Lesson 1 (and early lessons) must
   focus on the language itself, evaluated via `opa eval`/`opa run` — not conftest's
   `deny`/`warn` convention. Conftest is introduced only after the Rego fundamentals are
