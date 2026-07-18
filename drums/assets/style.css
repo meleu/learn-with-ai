@@ -1,0 +1,180 @@
+/* ============================================================
+   Shared stylesheet for the "Single-Stroke Speed" drum course.
+   Tufte-inspired: warm paper, serif body, generous measure.
+   Linked by every lesson and reference doc.
+   ============================================================ */
+
+:root {
+  --paper:      #fbf9f4;
+  --ink:        #201c18;
+  --ink-soft:   #55504a;
+  --rule:       #ddd6c9;
+  --accent:     #b3521f;   /* burnt orange — a drumstick-wood tone */
+  --accent-dim: #f0e2d6;
+  --good:       #2e7d4f;
+  --bad:        #b03030;
+  --mono: "SF Mono", "JetBrains Mono", "Menlo", Consolas, monospace;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 18px; }
+
+body {
+  margin: 0 auto;
+  max-width: 42rem;
+  padding: 3.5rem 1.5rem 6rem;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Masthead ---------------------------------------------- */
+.masthead {
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 0.6rem;
+  margin-bottom: 2.5rem;
+}
+.masthead .course {
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+  color: var(--accent);
+  margin: 0;
+}
+.masthead .lesson-no {
+  float: right;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Typography -------------------------------------------- */
+h1 { font-size: 2rem; line-height: 1.15; margin: 0.2rem 0 0.4rem; }
+h2 {
+  font-size: 1.3rem;
+  margin: 2.6rem 0 0.6rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid var(--rule);
+}
+h3 { font-size: 1.05rem; margin: 1.6rem 0 0.4rem; }
+.subtitle { font-style: italic; color: var(--ink-soft); font-size: 1.1rem; margin: 0 0 1rem; }
+p, li { font-size: 1rem; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-dim); }
+a:hover { border-bottom-color: var(--accent); }
+strong { font-weight: 700; }
+em { font-style: italic; }
+sup { line-height: 0; }
+
+/* ---- Mission tie-in banner --------------------------------- */
+.mission {
+  background: var(--accent-dim);
+  border-left: 4px solid var(--accent);
+  padding: 0.7rem 1rem;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+}
+.mission strong { color: var(--accent); }
+
+/* ---- Callout / key box ------------------------------------- */
+.key {
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--accent);
+  background: #fff;
+  padding: 1rem 1.2rem;
+  margin: 1.4rem 0;
+  border-radius: 2px;
+}
+.key h3 { margin-top: 0; }
+
+/* ---- Drill steps ------------------------------------------- */
+ol.drill { counter-reset: step; list-style: none; padding-left: 0; }
+ol.drill > li {
+  position: relative;
+  padding: 0.5rem 0 0.9rem 2.6rem;
+  border-bottom: 1px dotted var(--rule);
+}
+ol.drill > li:last-child { border-bottom: none; }
+ol.drill > li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute; left: 0; top: 0.45rem;
+  width: 1.8rem; height: 1.8rem;
+  background: var(--accent); color: #fff;
+  font-family: var(--mono); font-size: 0.9rem;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+}
+
+/* ---- Tables (routine / logs) ------------------------------- */
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.92rem; }
+th, td { text-align: left; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--rule); }
+th { font-variant: small-caps; letter-spacing: 0.04em; color: var(--ink-soft); }
+td.bpm, th.bpm { font-family: var(--mono); text-align: right; white-space: nowrap; }
+.overflow { overflow-x: auto; }
+
+/* ---- Citations / footer ------------------------------------ */
+.cite { font-size: 0.82rem; color: var(--ink-soft); }
+.source-box {
+  background: #fff; border: 1px solid var(--rule);
+  padding: 0.9rem 1.1rem; margin: 1.4rem 0; border-radius: 2px;
+}
+.source-box h3 { margin-top: 0; }
+.ask {
+  margin-top: 3rem; padding: 1rem 1.2rem;
+  background: var(--accent-dim); border-radius: 2px;
+  font-size: 0.95rem;
+}
+footer.nav {
+  margin-top: 3rem; padding-top: 1rem;
+  border-top: 2px solid var(--ink);
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+  font-size: 0.85rem; font-family: var(--mono);
+}
+
+/* ---- Small helpers ----------------------------------------- */
+.muted { color: var(--ink-soft); }
+.tag {
+  display: inline-block; font-family: var(--mono); font-size: 0.7rem;
+  background: var(--ink); color: var(--paper);
+  padding: 0.1rem 0.45rem; border-radius: 3px; vertical-align: middle;
+}
+input.log {
+  font-family: var(--mono); font-size: 1rem;
+  border: none; border-bottom: 2px solid var(--accent);
+  background: transparent; width: 4rem; text-align: center; color: var(--ink);
+}
+
+/* ---- Quiz (assets/quiz.js) --------------------------------- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  background: #fff; padding: 1rem 1.2rem; margin: 1.4rem 0; border-radius: 2px;
+}
+.quiz-q { font-weight: 700; margin: 0 0 0.7rem; }
+.quiz button {
+  display: block; width: 100%; text-align: left;
+  font-family: var(--serif); font-size: 0.95rem;
+  padding: 0.5rem 0.8rem; margin: 0.35rem 0;
+  background: var(--paper); color: var(--ink);
+  border: 1px solid var(--rule); border-radius: 3px; cursor: pointer;
+  transition: background 0.12s;
+}
+.quiz button:hover { background: var(--accent-dim); }
+.quiz button.chosen { border-color: var(--accent); font-weight: 700; }
+.quiz.answered-ok button.chosen { background: #e5f2ea; border-color: var(--good); }
+.quiz.answered-no button.chosen { background: #f6e3e3; border-color: var(--bad); }
+.quiz-fb { min-height: 1.2rem; margin: 0.6rem 0 0; font-size: 0.9rem; font-style: italic; }
+
+/* ---- Print ------------------------------------------------- */
+@media print {
+  :root { --paper: #fff; }
+  body { max-width: none; padding: 0; font-size: 11pt; }
+  .ask, footer.nav, .quiz button { display: none; }
+  h2, h3 { break-after: avoid; }
+  .key, .source-box, ol.drill > li, table { break-inside: avoid; }
+  a { color: var(--ink); border: none; }
+}

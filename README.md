@@ -9,3 +9,5 @@ See Matt's skills at <https://github.com/mattpocock/skills>.
 ## Available Topics
 
 - [Learning Rego](./rego/lessons/)
+- [Drums: faster single stroke rolls](./drums/lessons/)
+
