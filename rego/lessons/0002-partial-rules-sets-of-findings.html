@@ -1,0 +1,241 @@
+<meta charset="utf-8">
+<title>Lesson 2 — Partial Rules: a Set of Findings</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+
+<p class="kicker"><a href="index.html">Rego Course</a> &nbsp;·&nbsp; Lesson 2</p>
+<h1>Partial Rules: a Set of Findings</h1>
+<p class="subtitle">One rule, many answers. The rule shape that <code>conftest</code>'s <code>deny</code> is built from.</p>
+
+<div class="tip">
+  <span class="label">Your win for this lesson</span>
+  By the end you can (1) write a <strong>partial set rule</strong> that collects zero-or-more
+  findings, (2) explain why an empty result is <code>[]</code> and not <em>undefined</em>, and
+  (3) recognise this as the exact shape of a conftest <code>deny</code> rule.
+</div>
+
+<h2>1. The question changed shape</h2>
+
+<p>
+  In <a href="0001-the-rego-mental-model.html">Lesson&nbsp;1</a>, <code>allow</code> answered
+  <em>one</em> yes/no question: a <strong>complete rule</strong> produces a single value.
+  That's the right tool for "is this allowed?".
+</p>
+
+<p>
+  But the question you'll actually ask in a pipeline is different: <em>"what's wrong with this
+  config?"</em> The honest answer isn't one boolean — it's a <strong>list</strong>. Maybe
+  nothing is wrong. Maybe three things are. You want to collect <em>all</em> the problems in
+  one pass, each with its own message. A single value can't hold that; you need a rule that
+  produces a <strong>set</strong>.
+</p>
+
+<div class="flow">
+  <div class="box">
+    <div class="t"><code>input</code></div>
+    <div class="d">the config being checked</div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="box policy">
+    <div class="t">partial rule</div>
+    <div class="d">one condition per problem</div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="box">
+    <div class="t">a set</div>
+    <div class="d"><code>[]</code>, or many messages</div>
+  </div>
+</div>
+
+<h2>2. The partial set rule</h2>
+
+<p>
+  Rego's second rule type builds a document <em>incrementally</em>. The docs call these
+  <a href="https://www.openpolicyagent.org/docs/policy-language">multi-value rules</a>:
+  each definition, when its body holds, <strong>adds one element</strong> to a set that all
+  the definitions share. The keyword is <code>contains</code>. Here is a small validator —
+  same generic-JSON spirit as the age check, now reporting problems:
+</p>
+
+<pre><code><span class="tok-kw">package</span> signup
+
+<span class="tok-com"># each rule adds ONE message to the `violations` set — when its body holds</span>
+violations <span class="tok-kw">contains</span> <span class="tok-str">"age must be at least 18"</span> <span class="tok-kw">if</span> input.age &lt; 18
+
+<span class="tok-com"># `not input.username` holds when the key is absent (undefined)</span>
+violations <span class="tok-kw">contains</span> <span class="tok-str">"username is required"</span> <span class="tok-kw">if</span> <span class="tok-kw">not</span> input.username
+
+<span class="tok-com"># `== ""` holds when the key is present but empty</span>
+violations <span class="tok-kw">contains</span> <span class="tok-str">"username can't be empty"</span> <span class="tok-kw">if</span> input.username == <span class="tok-str">""</span></code></pre>
+
+<p>
+  Read it as a definition, like before. There is no loop and no <code>append</code>. You
+  declare, once per problem, <em>"if this body holds, this message belongs in the set."</em>
+  OPA evaluates every definition and <strong>unions</strong> the results into one document
+  at <code>data.signup.violations</code>. Three definitions, same name — one set.
+</p>
+
+<p>
+  Notice the username has <em>two</em> definitions, guarding two different failure modes.
+  A <strong>missing</strong> key and an <strong>empty</strong> one are not the same thing in
+  Rego: an absent <code>input.username</code> is <em>undefined</em>, and
+  <code>undefined == ""</code> is itself undefined — so <code>== ""</code> alone would silently
+  miss it. <code>not input.username</code> is the presence check that catches the absent case;
+  <code>== ""</code> catches the present-but-empty one. Two problems, two definitions — same
+  pattern as adding any other check.
+</p>
+
+<div class="note">
+  <span class="label">Kept deliberately simple</span>
+  This validator is a teaching example, not production-ready — it doesn't cover every edge case
+  (a <code>null</code> username, whitespace-only input, type checks, and so on). The goal here is
+  the <em>rule shape</em>; robust presence and value checking is a topic of its own.
+</div>
+
+<div class="defrow">
+  <dt><code>contains X</code></dt>
+  <dd>Marks this as a <strong>partial (multi-value) rule</strong>: <code>X</code> is a candidate element of a set, not the rule's whole value.</dd>
+  <dt><code>if &lt;body&gt;</code></dt>
+  <dd>The same rule body as Lesson 1. If OPA can satisfy it, <code>X</code> is added; if not, this definition contributes nothing.</dd>
+  <dt>repeated name</dt>
+  <dd>Every rule called <code>violations</code> feeds the <em>same</em> set. Add a check by adding a definition — order doesn't matter.</dd>
+</div>
+
+<div class="quiz">
+  <p class="q">Two <code>violations</code> definitions both have satisfiable bodies for this input. What is <code>data.signup.violations</code>?</p>
+  <div class="opts">
+    <button class="opt">Only the first message, because a rule returns a single value.</button>
+    <button class="opt" data-correct>A set containing both messages, unioned from the two rules.</button>
+    <button class="opt">A conflict error, because two rules define the same name.</button>
+  </div>
+  <div class="explain">
+    <strong>They union.</strong> Partial rules with the same name accumulate into one set —
+    that's the whole point. (Compare a <em>complete</em> rule like <code>allow</code>, where
+    two bodies producing <em>different</em> values <em>would</em> conflict.)
+  </div>
+</div>
+
+<h2>3. Run it — you get a set, not a boolean</h2>
+
+<p>Save the policy as <code>signup.rego</code> and try an input with two problems:</p>
+
+<pre><code><span class="tok-com"># bad.json</span>
+{ <span class="tok-str">"age"</span>: 16, <span class="tok-str">"username"</span>: <span class="tok-str">""</span> }</code></pre>
+
+<pre><code>opa eval -d signup.rego -i bad.json <span class="tok-str">'data.signup.violations'</span> --format pretty</code></pre>
+
+<p>Output — a set, printed as a JSON array:</p>
+
+<pre><code>[
+  <span class="tok-str">"age must be at least 18"</span>,
+  <span class="tok-str">"username can't be empty"</span>
+]</code></pre>
+
+<p>Now feed it a clean input and re-run:</p>
+
+<pre><code><span class="tok-com"># good.json</span>
+{ <span class="tok-str">"age"</span>: 21, <span class="tok-str">"username"</span>: <span class="tok-str">"meleu"</span> }</code></pre>
+
+<pre><code>[]</code></pre>
+
+<div class="why">
+  <span class="label">The one subtlety that trips everyone</span>
+  When no body holds, a partial rule is the <strong>empty set <code>[]</code></strong> — a real,
+  defined value. It is <em>not</em> undefined, and it needs <strong>no <code>default</code></strong>.
+  Contrast Lesson 1: a <em>complete</em> rule whose body fails yields <em>undefined</em>. Partial
+  rules start empty and fill up; complete rules start at nothing and need a <code>default</code>
+  to answer when they can't fire.
+</div>
+
+<div class="quiz">
+  <p class="q">No violation body holds for the given input. What does <code>data.signup.violations</code> evaluate to?</p>
+  <div class="opts">
+    <button class="opt">Undefined, exactly like a complete rule whose body fails.</button>
+    <button class="opt">A runtime error asking you to add a <code>default</code> clause.</button>
+    <button class="opt" data-correct>The empty set, printed as <code>[]</code> — a defined value.</button>
+  </div>
+  <div class="explain">
+    <strong>Empty, not undefined.</strong> A partial set rule always denotes a set; with no
+    matching bodies that set is simply empty. This is why <code>deny</code>-style rules never
+    need a <code>default</code> — "no findings" is already <code>[]</code>.
+  </div>
+</div>
+
+<h2>4. Turn findings back into a verdict</h2>
+
+<p>
+  A set of messages is great for humans, but the pipeline wants a decision. Fold the set back
+  into a single boolean with a <strong>complete rule</strong> — reusing Lesson 1's shape and
+  the built-in <code>count</code>:
+</p>
+
+<pre><code><span class="tok-com"># fail the check if there is at least one violation</span>
+deny <span class="tok-kw">if</span> count(violations) &gt; 0</code></pre>
+
+<p>Ask for the whole package on the bad input and you see both documents at once:</p>
+
+<pre><code>opa eval -d signup.rego -i bad.json <span class="tok-str">'data.signup'</span> --format pretty</code></pre>
+
+<pre><code>{
+  <span class="tok-str">"deny"</span>: <span class="tok-kw">true</span>,
+  <span class="tok-str">"violations"</span>: [
+    <span class="tok-str">"age must be at least 18"</span>,
+    <span class="tok-str">"username can't be empty"</span>
+  ]
+}</code></pre>
+
+<p>
+  On the clean input, <code>violations</code> is <code>[]</code> and <code>deny</code> is
+  <em>undefined</em> (its body <code>count([]) &gt; 0</code> can't be satisfied) — so it simply
+  drops out of the output. Same two rule types from two lessons, now working together.
+</p>
+
+<h2>5. Where this shape is heading</h2>
+
+<div class="note">
+  <span class="label">You've built a reusable shape</span>
+  A partial set that <em>collects findings</em>, plus a complete rule that <em>folds them into
+  a verdict</em>, is the backbone of almost every real Rego policy you'll write. The key
+  property — "no findings" is already <code>[]</code>, a defined value that needs no
+  <code>default</code> — is exactly what makes the pattern pleasant to build on.
+  <span style="display:block;margin-top:0.5rem">
+  Policy tooling that runs in a pipeline is built directly on this shape, and we'll get there
+  once the Rego fundamentals are solid — framed, when we do, as <em>just OPA underneath</em>.
+  For now the win is that you can already write and read it. Next lesson: giving those messages
+  real detail (embedding input values with <code>sprintf</code>) and iterating over lists of
+  items with <code>some … in</code>.
+  </span>
+</div>
+
+<div class="source">
+  <span class="label">Primary source — read this next</span>
+  <a href="https://www.openpolicyagent.org/docs/policy-language">OPA Docs — Policy Language</a>,
+  the sections on <em>Generating Sets</em> and <em>Incremental Definitions</em>. It's the
+  authoritative statement of how <code>contains</code> rules accumulate into one document.
+</div>
+
+<div class="takeaways">
+  <span class="label">Main takeaways</span>
+  <ul>
+    <li>A <strong>partial (multi-value) set rule</strong> — <code>name contains X if &lt;body&gt;</code> — collects zero-or-more elements instead of one value.</li>
+    <li>Multiple definitions with the <strong>same name union</strong> into one set; add a check by adding a definition.</li>
+    <li>When no body holds, the result is the <strong>empty set <code>[]</code></strong> — a defined value, <em>not</em> undefined, needing no <code>default</code>.</li>
+    <li>That's the opposite failure mode from a <strong>complete rule</strong>, which is <em>undefined</em> when its body can't be satisfied.</li>
+    <li>Fold a set of findings back to a verdict with a complete rule: <code>deny if count(violations) &gt; 0</code>.</li>
+    <li>This "collect findings, fold to a verdict" shape is the backbone of real policies — the exact pattern pipeline policy tooling is built on (covered later).</li>
+  </ul>
+</div>
+
+<div class="ask">
+  <strong>Stuck or curious?</strong> I'm your teacher for this course — ask me anything that's
+  unclear: why a set unions instead of conflicting, when to use partial vs complete, how the
+  same idea shows up in your real manifests. Just ask in the chat.
+</div>
+
+<div class="lesson-nav">
+  <span><a href="../reference/rule-types.html">→ Reference: Complete vs partial rules</a></span>
+  <span><a href="index.html">Course index</a></span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+<script src="../assets/copy-code.js"></script>

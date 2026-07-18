@@ -1,0 +1,111 @@
+<meta charset="utf-8">
+<title>Reference — Complete vs Partial Rules</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+
+<p class="kicker"><a href="../lessons/index.html">Rego Course</a> &nbsp;·&nbsp; Reference</p>
+<h1>Complete vs Partial Rules</h1>
+<p class="subtitle">A one-page card. The two rule shapes, side by side. Compressed essence of Lessons&nbsp;1–2.</p>
+
+<div class="tip">
+  <span class="label">The one distinction</span>
+  A <strong>complete rule</strong> produces <em>one value</em> (or nothing). A <strong>partial
+  rule</strong> produces a <em>collection</em>, built up across definitions. Which "empty"
+  you get when nothing matches is the giveaway: <code>undefined</code> vs <code>[]</code>.
+</div>
+
+<h2>Side by side</h2>
+
+<table>
+  <thead>
+    <tr><th></th><th>Complete rule</th><th>Partial set rule</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Question</strong></td>
+      <td>"Is it allowed?" — one answer</td>
+      <td>"What's wrong?" — a list</td>
+    </tr>
+    <tr>
+      <td><strong>Syntax</strong></td>
+      <td><code>allow if &lt;body&gt;</code></td>
+      <td><code>deny contains msg if &lt;body&gt;</code></td>
+    </tr>
+    <tr>
+      <td><strong>Produces</strong></td>
+      <td>a single value</td>
+      <td>a set (unions all definitions)</td>
+    </tr>
+    <tr>
+      <td><strong>No body holds</strong></td>
+      <td><code>undefined</code></td>
+      <td><code>[]</code> (defined, empty)</td>
+    </tr>
+    <tr>
+      <td><strong>Needs <code>default</code>?</strong></td>
+      <td>usually — to answer when undefined</td>
+      <td>never — empty <em>is</em> the answer</td>
+    </tr>
+    <tr>
+      <td><strong>Two definitions</strong></td>
+      <td>must agree, or it's a <em>conflict</em></td>
+      <td>always merge (union)</td>
+    </tr>
+    <tr>
+      <td><strong>Used for</strong></td>
+      <td>a verdict: <code>allow</code>, <code>deny</code>-as-bool</td>
+      <td>findings: conftest <code>deny</code>/<code>warn</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Canonical shapes (OPA 1.0)</h2>
+
+<pre><code><span class="tok-com"># COMPLETE — one value, default fallback</span>
+<span class="tok-kw">package</span> example
+<span class="tok-kw">default</span> allow := <span class="tok-kw">false</span>
+allow <span class="tok-kw">if</span> input.age &gt;= 18
+
+
+<span class="tok-com"># PARTIAL SET — many findings, no default needed</span>
+<span class="tok-kw">package</span> signup
+violations <span class="tok-kw">contains</span> <span class="tok-str">"age must be at least 18"</span> <span class="tok-kw">if</span> input.age &lt; 18
+violations <span class="tok-kw">contains</span> <span class="tok-str">"username is required"</span>   <span class="tok-kw">if</span> input.username == <span class="tok-str">""</span>
+
+<span class="tok-com"># fold findings back into a verdict</span>
+deny <span class="tok-kw">if</span> count(violations) &gt; 0</code></pre>
+
+<h2>What OPA prints</h2>
+
+<div class="defrow">
+  <dt>complete, body holds</dt>
+  <dd>the value, e.g. <code>true</code></dd>
+  <dt>complete, body fails</dt>
+  <dd><code>undefined</code> (omitted from a package dump)</dd>
+  <dt>partial, some match</dt>
+  <dd>a JSON array of the elements</dd>
+  <dt>partial, none match</dt>
+  <dd><code>[]</code></dd>
+</div>
+
+<h2>The conftest connection</h2>
+
+<div class="note">
+  <span class="label">Same shape, different name</span>
+  Conftest scans <code>package main</code> for partial set rules named <code>deny</code>,
+  <code>warn</code>, or <code>violation</code>. It collects each set, prints the messages, and
+  fails when <code>deny</code> is non-empty. Everything on this card stays true there —
+  conftest is just OPA collecting a set for you.
+</div>
+
+<div class="source">
+  <span class="label">Sources</span>
+  <a href="https://www.openpolicyagent.org/docs/policy-language">OPA — Policy Language</a>
+  (complete rules, generating sets, incremental definitions) ·
+  <a href="https://www.conftest.dev/">Conftest docs</a> (the <code>deny</code>/<code>warn</code> convention).
+</div>
+
+<div class="lesson-nav">
+  <span><a href="../lessons/0002-partial-rules-sets-of-findings.html">← Lesson 2</a></span>
+  <span><a href="rego-toolbox.html">Toolbox card</a> &nbsp;·&nbsp; <a href="../lessons/index.html">Course index</a></span>
+</div>
