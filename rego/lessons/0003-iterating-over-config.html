@@ -1,0 +1,264 @@
+<meta charset="utf-8">
+<title>Lesson 3 — Iterating Over Config</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+
+<p class="kicker"><a href="index.html">Rego Course</a> &nbsp;·&nbsp; Lesson 3</p>
+<h1>Iterating Over Config</h1>
+<p class="subtitle">Real manifests are lists. One rule, <code>some&nbsp;…&nbsp;in</code>, and a detailed finding for every bad item.</p>
+
+<div class="tip">
+  <span class="label">Your win for this lesson</span>
+  By the end you can (1) use <code>some&nbsp;…&nbsp;in</code> to make one partial rule emit
+  <strong>a finding per offending item</strong> in a list, (2) build detailed messages with
+  <code>sprintf</code>, and (3) reach for <code>every</code> when the question is
+  <em>"do all of them pass?"</em>.
+</div>
+
+<h2>1. The config is a list now</h2>
+
+<p>
+  In <a href="0002-partial-rules-sets-of-findings.html">Lesson&nbsp;2</a> each check looked at a
+  <em>fixed</em> field — <code>input.age</code>, <code>input.username</code> — so one definition
+  per problem was enough. But the manifests you validate in a pipeline aren't shaped like that.
+  A deployment has a <strong>list</strong> of containers; a compose file, a list of services.
+  You don't know how many there are, and you want to check <em>each one</em>.
+</p>
+
+<p>
+  You can't write one definition per container — you don't know them ahead of time. Instead you
+  write <strong>one</strong> definition and let it <strong>iterate</strong>: bind a variable to
+  each element in turn, and emit a finding for every element whose body holds.
+</p>
+
+<div class="flow">
+  <div class="box">
+    <div class="t"><code>input.containers</code></div>
+    <div class="d">a list of N items</div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="box policy">
+    <div class="t">rule with <code>some</code></div>
+    <div class="d">body runs once per item</div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="box">
+    <div class="t">a set</div>
+    <div class="d">one finding per match</div>
+  </div>
+</div>
+
+<h2>2. <code>some … in</code> — fan out over the list</h2>
+
+<p>
+  <code>some c in input.containers</code> introduces a variable <code>c</code> and tells OPA:
+  <em>"try this body for every element of the list."</em> Each binding that satisfies the whole
+  body contributes its element to the result. Pair it with the <code>contains</code> rule from
+  Lesson&nbsp;2 and a single definition fans out into many findings. Here's a check that flags any
+  image pinned to the mutable <code>:latest</code> tag:
+</p>
+
+<pre><code><span class="tok-kw">package</span> manifest
+
+<span class="tok-com"># one finding PER container pinned to :latest — `some` iterates the list</span>
+violations <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers
+	endswith(c.image, <span class="tok-str">":latest"</span>)
+	msg := sprintf(<span class="tok-str">"container %q uses the mutable :latest tag"</span>, [c.name])
+}</code></pre>
+
+<p>
+  The body is still just conditions joined by AND (Lesson&nbsp;1) — the only new part is that
+  <code>some&nbsp;…&nbsp;in</code> makes <code>c</code> range over the list rather than naming one
+  fixed path. OPA evaluates the body once per element; three containers means three attempts, and
+  each attempt that holds adds one message to the shared <code>violations</code> set.
+</p>
+
+<div class="defrow">
+  <dt><code>some c in xs</code></dt>
+  <dd>Iterate: bind <code>c</code> to each element of <code>xs</code>, evaluate the body for each.</dd>
+  <dt>body holds</dt>
+  <dd>For that binding, the element contributes a finding. Bindings that fail contribute nothing.</dd>
+  <dt><code>msg :=</code></dt>
+  <dd><code>:=</code> assigns a local variable inside the body — here, the finding this binding adds.</dd>
+</div>
+
+<p>Save it as <code>manifest.rego</code> and feed it a list with three containers:</p>
+
+<pre><code><span class="tok-com"># input.json — real manifests are arrays</span>
+{
+  <span class="tok-str">"containers"</span>: [
+    { <span class="tok-str">"name"</span>: <span class="tok-str">"api"</span>,   <span class="tok-str">"image"</span>: <span class="tok-str">"corp/api:1.4.2"</span> },
+    { <span class="tok-str">"name"</span>: <span class="tok-str">"cache"</span>, <span class="tok-str">"image"</span>: <span class="tok-str">"redis:latest"</span> },
+    { <span class="tok-str">"name"</span>: <span class="tok-str">"web"</span>,   <span class="tok-str">"image"</span>: <span class="tok-str">"nginx:latest"</span> }
+  ]
+}</code></pre>
+
+<pre><code>opa eval -d manifest.rego -i input.json <span class="tok-str">'data.manifest.violations'</span> --format pretty</code></pre>
+
+<p>One definition, two findings — the two containers on <code>:latest</code>:</p>
+
+<pre><code>[
+  <span class="tok-str">"container \"cache\" uses the mutable :latest tag"</span>,
+  <span class="tok-str">"container \"web\" uses the mutable :latest tag"</span>
+]</code></pre>
+
+<div class="quiz">
+  <p class="q">Three containers, two of them on <code>:latest</code>. Using <code>some c in input.containers</code>, how many findings does the single <code>violations</code> rule add?</p>
+  <div class="opts">
+    <button class="opt">One finding, because one rule adds one element.</button>
+    <button class="opt" data-correct>Two findings, one for each matching binding.</button>
+    <button class="opt">Three findings, one for every container present.</button>
+  </div>
+  <div class="explain">
+    <strong>One per match.</strong> <code>some</code> runs the body once for each element, and only
+    the bindings whose body holds contribute. Two containers match, so the set has two findings —
+    the non-<code>:latest</code> one simply produces no binding that satisfies the body.
+  </div>
+</div>
+
+<h2>3. <code>sprintf</code> — messages that name the culprit</h2>
+
+<p>
+  A finding that says <em>"an image uses :latest"</em> makes a human go hunting. A finding that
+  says <em>which</em> container is instantly actionable. <code>sprintf(format, args)</code> builds
+  a string from a format template and an <strong>array</strong> of arguments — one array slot per
+  <code>%</code> verb, in order:
+</p>
+
+<pre><code>msg := sprintf(<span class="tok-str">"container %q on image %q"</span>, [c.name, c.image])
+<span class="tok-com"># → container "cache" on image "redis:latest"</span></code></pre>
+
+<table>
+  <thead><tr><th>Verb</th><th>Formats</th><th>Example → output</th></tr></thead>
+  <tbody>
+    <tr><td><code>%v</code></td><td>any value, default form</td><td><code>[1,2]</code> → <code>[1, 2]</code></td></tr>
+    <tr><td><code>%s</code></td><td>a string, unquoted</td><td><code>api</code> → <code>api</code></td></tr>
+    <tr><td><code>%q</code></td><td>a string, <strong>quoted</strong></td><td><code>api</code> → <code>"api"</code></td></tr>
+    <tr><td><code>%d</code></td><td>an integer</td><td><code>18</code> → <code>18</code></td></tr>
+  </tbody>
+</table>
+
+<p>
+  The <code>%q</code> quoting is worth the habit: it makes names visibly stand out in a message and
+  survives empty or odd values (an empty name prints as <code>""</code>, not as nothing). Full verb
+  list and more examples live on the new
+  <a href="../reference/iteration-and-strings.html">Iteration &amp; Strings</a> reference card.
+</p>
+
+<h2>4. More conditions, deeper input</h2>
+
+<p>
+  A body can mix iteration with any number of other conditions — still AND. Add a second check for
+  privileged containers, reaching into a <em>nested</em> field:
+</p>
+
+<pre><code><span class="tok-com"># one finding per privileged container</span>
+violations <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers
+	c.securityContext.privileged == <span class="tok-kw">true</span>
+	msg := sprintf(<span class="tok-str">"container %q runs privileged"</span>, [c.name])
+}</code></pre>
+
+<p>
+  This is a second definition of <code>violations</code>, so its findings <strong>union</strong>
+  into the same set (Lesson&nbsp;2). Notice the safety you get for free: if a container has no
+  <code>securityContext</code>, then <code>c.securityContext.privileged</code> is
+  <strong>undefined</strong>, the <code>== true</code> comparison is undefined, the body fails for
+  that binding — and it simply adds nothing. Missing structure quietly skips the check instead of
+  crashing. That's the same <em>undefined</em> from Lesson&nbsp;1, now working in your favour.
+</p>
+
+<h2>5. <code>every</code> — the "do all of them pass?" question</h2>
+
+<p>
+  <code>some</code> asks <em>"is there an element that…?"</em> — perfect for collecting findings.
+  Its mirror image is <code>every</code>, which asks <em>"do all elements satisfy…?"</em> and
+  yields a single boolean. Use it for a whole-manifest verdict:
+</p>
+
+<pre><code><span class="tok-com"># true only when EVERY image avoids :latest</span>
+<span class="tok-kw">default</span> all_pinned := <span class="tok-kw">false</span>
+all_pinned <span class="tok-kw">if</span> {
+	<span class="tok-kw">every</span> c <span class="tok-kw">in</span> input.containers {
+		<span class="tok-kw">not</span> endswith(c.image, <span class="tok-str">":latest"</span>)
+	}
+}</code></pre>
+
+<p>
+  <code>every c in xs { … }</code> holds when the braced body holds for <em>all</em> bindings; one
+  failing element makes the whole thing fail. As a complete rule it needs a <code>default</code>
+  (Lesson&nbsp;1) so it answers <code>false</code> rather than going undefined.
+</p>
+
+<div class="why">
+  <span class="label">The gotcha everyone meets once</span>
+  <code>every</code> over an <strong>empty</strong> list is <strong>true</strong> — there's no
+  element to violate the condition, so "all of them pass" holds vacuously. A manifest with zero
+  containers reports <code>all_pinned = true</code>. When "empty" should <em>not</em> pass, add an
+  explicit non-empty check (<code>count(input.containers) &gt; 0</code>).
+</div>
+
+<div class="quiz">
+  <p class="q"><code>input.containers</code> is the empty list <code>[]</code>. What does <code>all_pinned</code>, built with <code>every</code>, evaluate to?</p>
+  <div class="opts">
+    <button class="opt">It is <code>false</code>, since nothing was pinned.</button>
+    <button class="opt" data-correct>It is <code>true</code> — vacuously, no element failed.</button>
+    <button class="opt">It is <code>undefined</code>, since nothing ran.</button>
+  </div>
+  <div class="explain">
+    <strong>Vacuously true.</strong> <code>every</code> fails only when some element breaks the
+    condition; with no elements, none can, so it holds. Guard with a <code>count</code> check when
+    an empty collection should be treated as a failure.
+  </div>
+</div>
+
+<h2>6. Preview: collecting values, not just booleans</h2>
+
+<div class="note">
+  <span class="label">One line to file away</span>
+  The same <code>some</code> iteration powers <strong>comprehensions</strong> — expressions that
+  build a new collection. A set comprehension collects the names of every privileged container:
+  <pre style="margin:0.6rem 0 0"><code>privileged_names := {c.name |
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers
+	c.securityContext.privileged == <span class="tok-kw">true</span>
+}</code></pre>
+  Read <code>{ value | body }</code> as "the set of <code>value</code> for every binding where
+  <code>body</code> holds." We'll lean on comprehensions properly in a later lesson; for now just
+  recognise the shape.
+</div>
+
+<div class="source">
+  <span class="label">Primary source — read this next</span>
+  <a href="https://www.openpolicyagent.org/docs/policy-language#iteration">OPA Docs — Policy
+  Language: Iteration</a> (and the following <em>Every</em> / <em>Comprehensions</em> sections).
+  The authoritative reference for <code>some</code>, <code>every</code>, and how iteration binds
+  variables.
+</div>
+
+<div class="takeaways">
+  <span class="label">Main takeaways</span>
+  <ul>
+    <li><strong>Real config is a list</strong>, so checks iterate instead of naming a fixed field.</li>
+    <li><code>some c in input.containers</code> runs the body once per element; combined with <code>contains</code>, one definition emits <strong>one finding per matching item</strong>.</li>
+    <li><code>sprintf(fmt, [args])</code> builds detailed messages; <code>%q</code> quotes a string, <code>%s</code> leaves it bare, <code>%d</code> is an integer, <code>%v</code> is any value.</li>
+    <li>A body freely mixes iteration with other conditions (still AND); reaching into a <strong>missing nested field is undefined</strong>, which safely skips that binding.</li>
+    <li><code>every c in xs { … }</code> answers <em>"do all pass?"</em> as one boolean — and is <strong>vacuously true over an empty list</strong>, so guard with <code>count</code> when empty should fail.</li>
+    <li>The same <code>some</code> drives <strong>comprehensions</strong> like <code>{v | body}</code> that build collections (later lesson).</li>
+  </ul>
+</div>
+
+<div class="ask">
+  <strong>Stuck or curious?</strong> I'm your teacher for this course — ask me anything: why a
+  missing field is undefined rather than an error, when to pick <code>some</code> vs
+  <code>every</code>, or how to shape one of your real manifests into a check. Just ask in the chat.
+</div>
+
+<div class="lesson-nav">
+  <span><a href="0002-partial-rules-sets-of-findings.html">← Lesson 2</a></span>
+  <span><a href="../reference/iteration-and-strings.html">→ Reference: Iteration &amp; Strings</a></span>
+  <span><a href="index.html">Course index</a></span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+<script src="../assets/copy-code.js"></script>

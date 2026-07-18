@@ -1,0 +1,113 @@
+<meta charset="utf-8">
+<title>Reference — Iteration &amp; Strings</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+
+<p class="kicker"><a href="../lessons/index.html">Rego Course</a> &nbsp;·&nbsp; Reference</p>
+<h1>Iteration &amp; Strings</h1>
+<p class="subtitle">A one-page card to revisit. Compressed essence of Lesson 3.</p>
+
+<h2>The one-sentence model</h2>
+<div class="why">
+  When config is a <strong>list</strong>, one rule iterates it: <code>some&nbsp;…&nbsp;in</code>
+  binds a variable to each element and runs the body once per binding. With <code>contains</code>
+  that gives <strong>one finding per matching item</strong>.
+</div>
+
+<h2>Iterate &amp; collect findings — <code>some</code></h2>
+<pre><code><span class="tok-kw">package</span> manifest
+
+violations <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers   <span class="tok-com"># bind c to each element</span>
+	endswith(c.image, <span class="tok-str">":latest"</span>)   <span class="tok-com"># condition (AND)</span>
+	msg := sprintf(<span class="tok-str">"container %q uses :latest"</span>, [c.name])
+}</code></pre>
+<p style="font-family:var(--sans);font-size:0.85rem;color:var(--ink-soft);margin-top:-0.6rem">
+  Body runs once per element · only bindings whose body holds contribute · findings
+  <a href="rule-types.html">union</a> into one set · empty list ⇒ no findings ⇒ <code>[]</code>.
+</p>
+
+<h2>All must pass? — <code>every</code></h2>
+<pre><code><span class="tok-kw">default</span> all_pinned := <span class="tok-kw">false</span>
+all_pinned <span class="tok-kw">if</span> {
+	<span class="tok-kw">every</span> c <span class="tok-kw">in</span> input.containers {
+		<span class="tok-kw">not</span> endswith(c.image, <span class="tok-str">":latest"</span>)
+	}
+}</code></pre>
+<p style="font-family:var(--sans);font-size:0.85rem;color:var(--ink-soft);margin-top:-0.6rem">
+  One boolean · fails if any element breaks the body · needs a <code>default</code> ·
+  <strong>empty list ⇒ vacuously true</strong> (guard with <code>count(xs) &gt; 0</code>).
+</p>
+
+<h2><code>some</code> vs <code>every</code></h2>
+<table>
+  <thead><tr><th></th><th><code>some x in xs</code></th><th><code>every x in xs {…}</code></th></tr></thead>
+  <tbody>
+    <tr><td>Asks</td><td>is there a match?</td><td>do all satisfy?</td></tr>
+    <tr><td>Pairs with</td><td><code>contains</code> → a set of findings</td><td>a complete rule → one boolean</td></tr>
+    <tr><td>Empty list</td><td>no bindings → no findings</td><td><strong>true</strong> (vacuous)</td></tr>
+    <tr><td>Use for</td><td>"flag every bad item"</td><td>"the whole manifest is clean"</td></tr>
+  </tbody>
+</table>
+
+<h2>Build a string — <code>sprintf</code></h2>
+<pre><code>sprintf(<span class="tok-str">"container %q on image %q"</span>, [c.name, c.image])
+<span class="tok-com"># → container "cache" on image "redis:latest"</span></code></pre>
+<p style="font-family:var(--sans);font-size:0.85rem;color:var(--ink-soft);margin-top:-0.6rem">
+  Args go in an <strong>array</strong>, one slot per verb, left to right.
+</p>
+<table>
+  <thead><tr><th>Verb</th><th>Formats</th><th>Example → output</th></tr></thead>
+  <tbody>
+    <tr><td><code>%v</code></td><td>any value, default form</td><td><code>[1,2]</code> → <code>[1, 2]</code></td></tr>
+    <tr><td><code>%s</code></td><td>string, unquoted</td><td><code>api</code> → <code>api</code></td></tr>
+    <tr><td><code>%q</code></td><td>string, <strong>quoted</strong></td><td><code>api</code> → <code>"api"</code></td></tr>
+    <tr><td><code>%d</code></td><td>integer</td><td><code>18</code> → <code>18</code></td></tr>
+    <tr><td><code>%f</code></td><td>float</td><td><code>1.5</code> → <code>1.500000</code></td></tr>
+    <tr><td><code>%%</code></td><td>a literal percent</td><td>→ <code>%</code></td></tr>
+  </tbody>
+</table>
+
+<h2>Comprehensions (build a collection)</h2>
+<pre><code><span class="tok-com"># set: { value | body }</span>
+names := {c.name | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers}
+
+<span class="tok-com"># array: [ value | body ]  (keeps duplicates &amp; order)</span>
+images := [c.image | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers]
+
+<span class="tok-com"># object: { key: value | body }</span>
+by_name := {c.name: c.image | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers}</code></pre>
+<p style="font-family:var(--sans);font-size:0.85rem;color:var(--ink-soft);margin-top:-0.6rem">
+  Read as "the collection of <em>value</em> for every binding where <em>body</em> holds."
+</p>
+
+<div class="note">
+  <span class="label">Legacy iteration you'll see in the wild</span>
+  Older policies iterate with <code>input.containers[_]</code> or
+  <code>input.containers[i]</code> instead of <code>some&nbsp;…&nbsp;in</code>. Both still work;
+  prefer <code>some&nbsp;x&nbsp;in&nbsp;xs</code> — it names the element and reads clearly.
+</div>
+
+<h2>Handy iteration built-ins</h2>
+<dl class="defrow">
+  <dt><code>count(xs)</code></dt>
+  <dd>Number of elements — fold a finding set to a verdict, or guard an empty list.</dd>
+  <dt><code>endswith / startswith / contains</code></dt>
+  <dd>Substring tests on strings (<code>contains(s, sub)</code> is the string builtin, distinct from the <code>contains</code> keyword).</dd>
+  <dt><code>sprintf(fmt, [args])</code></dt>
+  <dd>Format a message; verbs above.</dd>
+  <dt><code>some x in xs</code></dt>
+  <dd>Iterate elements. Also <code>some k, v in obj</code> for objects.</dd>
+</dl>
+
+<h2>Sources</h2>
+<ul style="font-family:var(--sans);font-size:0.9rem">
+  <li><a href="https://www.openpolicyagent.org/docs/policy-language#iteration">OPA — Policy Language: Iteration</a> (<code>some</code>, <code>every</code>, comprehensions)</li>
+  <li><a href="https://www.openpolicyagent.org/docs/policy-reference#strings">OPA — Policy Reference: Strings</a> (<code>sprintf</code> and friends)</li>
+</ul>
+
+<div class="lesson-nav">
+  <span><a href="../lessons/0003-iterating-over-config.html">← Lesson 3</a></span>
+  <span><a href="rule-types.html">Reference: Rule types</a></span>
+  <span><a href="../lessons/index.html">Course index</a></span>
+</div>
