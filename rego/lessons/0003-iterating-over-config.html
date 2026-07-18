@@ -213,19 +213,68 @@ all_pinned <span class="tok-kw">if</span> {
   </div>
 </div>
 
-<h2>6. Preview: collecting values, not just booleans</h2>
+<h2>6. A rule body is the AND of its lines</h2>
+
+<p>
+  So <em>where</em> does that <code>count</code> guard go? The answer is worth pausing on, because
+  it comes straight from <a href="0001-the-rego-mental-model.html">Lesson&nbsp;1</a>: a rule body
+  is just <strong>conditions joined by AND</strong>. Every line must hold for the rule to fire —
+  there is no <code>and</code> keyword, the newline <em>is</em> the AND. So to demand "at least one
+  container <strong>and</strong> all of them pinned", you add the guard as another line in the
+  body, right beside the <code>every</code>:
+</p>
+
+<pre><code><span class="tok-kw">default</span> all_pinned := <span class="tok-kw">false</span>
+all_pinned <span class="tok-kw">if</span> {
+	count(input.containers) &gt; 0        <span class="tok-com"># AND — must be non-empty</span>
+	<span class="tok-kw">every</span> c <span class="tok-kw">in</span> input.containers {   <span class="tok-com"># AND — and all pinned</span>
+		<span class="tok-kw">not</span> endswith(c.image, <span class="tok-str">":latest"</span>)
+	}
+}</code></pre>
+
+<p>
+  On an empty list, <code>count([]) &gt; 0</code> is false, so the body fails as a whole and the
+  <code>default</code> answers <code>false</code> — the vacuous <code>true</code> can never leak
+  out. The placement matters: the guard is an <em>outer</em> body line. Tucking it
+  <em>inside</em> the <code>every&nbsp;{&nbsp;…&nbsp;}</code> braces wouldn't help, because that
+  block runs <em>per element</em> — with zero elements it never runs, and the rule is vacuously
+  true again.
+</p>
 
 <div class="note">
-  <span class="label">One line to file away</span>
-  The same <code>some</code> iteration powers <strong>comprehensions</strong> — expressions that
-  build a new collection. A set comprehension collects the names of every privileged container:
-  <pre style="margin:0.6rem 0 0"><code>privileged_names := {c.name |
-	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers
-	c.securityContext.privileged == <span class="tok-kw">true</span>
-}</code></pre>
-  Read <code>{ value | body }</code> as "the set of <code>value</code> for every binding where
-  <code>body</code> holds." We'll lean on comprehensions properly in a later lesson; for now just
-  recognise the shape.
+  <span class="label">Which rules need the guard?</span>
+  Only the "do all pass?" ones. A <code>some</code>/<code>violations</code> rule needs no guard:
+  an empty list yields no findings, i.e. <code>[]</code>, which already means "nothing wrong".
+  And if an empty manifest should itself be a <em>finding</em>, don't guard <code>all_pinned</code>
+  — add a separate check: <code>violations contains "no containers" if count(input.containers) == 0</code>.
+  Whether empty is fine or forbidden is a policy decision, not a Rego one.
+</div>
+
+<div class="quiz">
+  <p class="q">You want <code>all_pinned</code> to be <code>false</code> for an empty list. Where does <code>count(input.containers) &gt; 0</code> belong?</p>
+  <div class="opts">
+    <button class="opt" data-correct>As another line in the rule's body.</button>
+    <button class="opt">As another line inside the braces.</button>
+    <button class="opt">As another clause on the default.</button>
+  </div>
+  <div class="explain">
+    <strong>In the body, beside the <code>every</code>.</strong> The body is an AND, so the guard
+    joins it as a peer line and the rule needs both. Inside the <code>every</code> braces it would
+    run per element — never, for an empty list — so the rule stays vacuously true; and
+    <code>default</code> takes a bare fallback value, not a condition.
+  </div>
+</div>
+
+<h2>7. Next: collecting values, not just booleans</h2>
+
+<div class="note">
+  <span class="label">Where this goes next</span>
+  So far iteration has produced two things: a set of <em>findings</em> (strings) with
+  <code>some</code>&nbsp;+&nbsp;<code>contains</code>, and a single <em>verdict</em> (boolean) with
+  <code>every</code>. The same <code>some</code> can also collect the <strong>values
+  themselves</strong> — the set of offending container names, a map of name&nbsp;→&nbsp;image — using
+  <strong>comprehensions</strong>. That's the whole of
+  <a href="0004-comprehensions.html">Lesson&nbsp;4</a>.
 </div>
 
 <div class="source">
@@ -244,7 +293,8 @@ all_pinned <span class="tok-kw">if</span> {
     <li><code>sprintf(fmt, [args])</code> builds detailed messages; <code>%q</code> quotes a string, <code>%s</code> leaves it bare, <code>%d</code> is an integer, <code>%v</code> is any value.</li>
     <li>A body freely mixes iteration with other conditions (still AND); reaching into a <strong>missing nested field is undefined</strong>, which safely skips that binding.</li>
     <li><code>every c in xs { … }</code> answers <em>"do all pass?"</em> as one boolean — and is <strong>vacuously true over an empty list</strong>, so guard with <code>count</code> when empty should fail.</li>
-    <li>The same <code>some</code> drives <strong>comprehensions</strong> like <code>{v | body}</code> that build collections (later lesson).</li>
+    <li>A rule <strong>body is the AND of its lines</strong> (the newline <em>is</em> the AND); the empty-list guard is an <em>outer</em> body line beside the <code>every</code>, not inside its braces.</li>
+    <li>The same <code>some</code> drives <strong>comprehensions</strong> like <code>{v | body}</code> that build collections — the subject of <a href="0004-comprehensions.html">Lesson&nbsp;4</a>.</li>
   </ul>
 </div>
 
@@ -256,7 +306,7 @@ all_pinned <span class="tok-kw">if</span> {
 
 <div class="lesson-nav">
   <span><a href="0002-partial-rules-sets-of-findings.html">← Lesson 2</a></span>
-  <span><a href="../reference/iteration-and-strings.html">→ Reference: Iteration &amp; Strings</a></span>
+  <span><a href="0004-comprehensions.html">→ Lesson 4</a></span>
   <span><a href="index.html">Course index</a></span>
 </div>
 

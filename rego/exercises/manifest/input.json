@@ -1,0 +1,23 @@
+# input.json
+{
+  "containers": [
+    {
+      "name": "api",
+      "image": "corp/api:1.4.2",
+      "securityContext": {
+        "privileged": true
+      }
+    },
+    {
+      "name": "cache",
+      "image": "redis:latest"
+    },
+    {
+      "name": "web",
+      "image": "nginx:latest",
+      "securityContext": {
+        "privileged": true
+      }
+    }
+  ]
+}
