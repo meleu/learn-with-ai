@@ -5,7 +5,7 @@
 
 <p class="kicker"><a href="../lessons/index.html">Rego Course</a> &nbsp;·&nbsp; Reference</p>
 <h1>Iteration &amp; Strings</h1>
-<p class="subtitle">A one-page card to revisit. Compressed essence of Lesson 3.</p>
+<p class="subtitle">A one-page card to revisit. Compressed essence of Lessons 3–4.</p>
 
 <h2>The one-sentence model</h2>
 <div class="why">
@@ -69,17 +69,32 @@ all_pinned <span class="tok-kw">if</span> {
 </table>
 
 <h2>Comprehensions (build a collection)</h2>
-<pre><code><span class="tok-com"># set: { value | body }</span>
+<pre><code><span class="tok-com"># set: { value | body }   — dedupes, unordered</span>
 names := {c.name | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers}
 
-<span class="tok-com"># array: [ value | body ]  (keeps duplicates &amp; order)</span>
+<span class="tok-com"># array: [ value | body ]  — keeps duplicates &amp; order</span>
 images := [c.image | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers]
 
-<span class="tok-com"># object: { key: value | body }</span>
+<span class="tok-com"># object: { key: value | body }  — keys must be unique</span>
 by_name := {c.name: c.image | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers}</code></pre>
 <p style="font-family:var(--sans);font-size:0.85rem;color:var(--ink-soft);margin-top:-0.6rem">
-  Read as "the collection of <em>value</em> for every binding where <em>body</em> holds."
+  Read as "the collection of <em>value</em> for every binding where <em>body</em> holds." See
+  <a href="../lessons/0004-comprehensions.html">Lesson&nbsp;4</a>.
 </p>
+<table>
+  <thead><tr><th>Form</th><th>Head</th><th>Keeps duplicates?</th><th>Ordered?</th></tr></thead>
+  <tbody>
+    <tr><td>set</td><td><code>{v | …}</code></td><td>no</td><td>no</td></tr>
+    <tr><td>array</td><td><code>[v | …]</code></td><td>yes</td><td>yes</td></tr>
+    <tr><td>object</td><td><code>{k: v | …}</code></td><td>keys unique</td><td>no</td></tr>
+  </tbody>
+</table>
+<div class="why">
+  <strong>Distinct-values idiom:</strong> <code>count([x | …]) == count({x | …})</code> — array keeps
+  dups, set drops them, so equal counts ⇒ no duplicates. And a comprehension <strong>never goes
+  undefined</strong>: no matches ⇒ an <em>empty</em> collection, so guard with
+  <code>count(…) &gt; 0</code> when empty shouldn't count.
+</div>
 
 <div class="note">
   <span class="label">Legacy iteration you'll see in the wild</span>
