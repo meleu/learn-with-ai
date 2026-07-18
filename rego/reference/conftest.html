@@ -1,0 +1,119 @@
+<meta charset="utf-8">
+<title>Reference — Conftest</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+
+<p class="kicker"><a href="../lessons/index.html">Rego Course</a> &nbsp;·&nbsp; Reference</p>
+<h1>Conftest</h1>
+<p class="subtitle">A one-page card to revisit. Compressed essence of Lesson 5 — the convention, the CLI, the exit codes.</p>
+
+<h2>The one-sentence model</h2>
+<div class="why">
+  Conftest is <strong>OPA for config files</strong>: it parses a file into <code>input</code>,
+  runs the rules named <code>deny</code>/<code>warn</code>/<code>violation</code> in package
+  <code>main</code>, and turns the findings into a PASS/FAIL <strong>exit code</strong> your CI reads.
+</div>
+
+<div class="flow">
+  <div class="box"><div class="t">config file</div><div class="d">YAML · Dockerfile · JSON…</div></div>
+  <div class="arrow">→</div>
+  <div class="box policy"><div class="t"><code>conftest test</code></div><div class="d">parse → <code>input</code>, run <code>data.main.deny</code></div></div>
+  <div class="arrow">→</div>
+  <div class="box"><div class="t">exit code</div><div class="d">0 pass · 1 fail</div></div>
+</div>
+
+<h2>The rule convention</h2>
+<table>
+  <thead>
+    <tr><th>Rule</th><th>Message</th><th>Build effect</th><th>Exit</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>deny</code></td><td>string</td><td>fails</td><td><code>1</code></td></tr>
+    <tr><td><code>violation</code></td><td>structured object</td><td>fails</td><td><code>1</code></td></tr>
+    <tr><td><code>warn</code></td><td>string</td><td>advisory, passes</td><td><code>0</code></td></tr>
+  </tbody>
+</table>
+<p style="font-family:var(--sans);font-size:0.85rem;color:var(--ink-soft);margin-top:-0.6rem">
+  Rules live in <strong>package <code>main</code></strong> by default · optional underscore suffix
+  for readability (<code>deny_privileged</code>) is ignored when matching · a rule is the same
+  <a href="../lessons/0002-partial-rules-sets-of-findings.html">partial set rule</a> you already write.
+</p>
+
+<h2>Canonical policy shape</h2>
+<pre><code><span class="tok-kw">package</span> main
+
+deny_privileged <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.spec.containers   <span class="tok-com"># paths match the parsed file's shape</span>
+	c.securityContext.privileged == <span class="tok-kw">true</span>
+	msg := sprintf(<span class="tok-str">"%q runs privileged"</span>, [c.name])
+}
+
+warn_latest_tag <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.spec.containers
+	endswith(c.image, <span class="tok-str">":latest"</span>)
+	msg := sprintf(<span class="tok-str">"%q uses the mutable :latest tag"</span>, [c.name])
+}</code></pre>
+
+<h2>Directory layout</h2>
+<pre><code>.
+├── pod.yaml            <span class="tok-com"># the config to check (becomes input)</span>
+└── policy/             <span class="tok-com"># default policy dir (override with -p)</span>
+    ├── deny.rego       <span class="tok-com"># package main</span>
+    └── warn.rego       <span class="tok-com"># package main</span></code></pre>
+
+<h2>CLI cheat sheet</h2>
+<pre><code><span class="tok-com"># test a file against ./policy</span>
+conftest test pod.yaml
+conftest test pod.yaml -p policy/          <span class="tok-com"># explicit policy dir</span>
+conftest test deploy/*.yaml                <span class="tok-com"># many files at once</span>
+cat pod.yaml | conftest test -             <span class="tok-com"># from stdin</span>
+
+<span class="tok-com"># machine-readable output for CI</span>
+conftest test pod.yaml -o json             <span class="tok-com"># also: tap, table, junit, github</span>
+
+<span class="tok-com"># namespaces (package other than main)</span>
+conftest test pod.yaml --namespace kubernetes
+conftest test pod.yaml --all-namespaces
+
+<span class="tok-com"># check the gate in a script</span>
+conftest test pod.yaml; echo $?           <span class="tok-com"># 0 = pass, 1 = a deny fired</span></code></pre>
+
+<h2>Reading the output</h2>
+<pre><code>FAIL - pod.yaml - main - <span class="tok-str">"api"</span> runs privileged
+WARN - pod.yaml - main - <span class="tok-str">"web"</span> sets no securityContext
+
+3 tests, 2 passed, 1 warning, 0 failures, 0 exceptions</code></pre>
+<dl class="defrow">
+  <dt>FAIL / WARN</dt>
+  <dd>One line per finding — the string your <code>deny</code>/<code>warn</code> set produced.</dd>
+  <dt>tests</dt>
+  <dd>Total rule evaluations, not files. Passed = rules that produced no finding.</dd>
+  <dt>failures</dt>
+  <dd>Only these (and violations) make the exit code non-zero. Warnings never do.</dd>
+</dl>
+
+<div class="note">
+  <span class="label">It's just OPA</span>
+  <code>conftest test pod.yaml -o json</code> shows the query it runs: <code>data.main.deny</code>.
+  Anything you can do in <code>opa eval</code> — <code>some</code>, <code>every</code>,
+  comprehensions, <code>sprintf</code>, helper rules — works unchanged here.
+</div>
+
+<h2>Supported input formats (selection)</h2>
+<p style="font-family:var(--sans);font-size:0.9rem;color:var(--ink-soft)">
+  YAML · JSON · Dockerfile · HCL / HCL2 (Terraform) · TOML · INI · XML · Jsonnet · CUE · Cyclonedx ·
+  Spdx · properties · edn · VCL · and more — chosen by file extension. Each becomes an
+  <code>input</code> document you reach into by its own shape.
+</p>
+
+<h2>Sources</h2>
+<ul style="font-family:var(--sans);font-size:0.9rem">
+  <li><a href="https://www.conftest.dev/">Conftest docs</a> (the convention, CLI, formats)</li>
+  <li><a href="https://www.openpolicyagent.org/docs/policy-language">OPA — Policy Language</a> (the Rego underneath)</li>
+  <li><a href="../lessons/0005-conftest-just-opa-underneath.html">Lesson 5</a> (where this card comes from)</li>
+</ul>
+
+<div class="lesson-nav">
+  <span><a href="../lessons/0005-conftest-just-opa-underneath.html">← Lesson 5</a></span>
+  <span><a href="../lessons/index.html">Course index</a></span>
+</div>

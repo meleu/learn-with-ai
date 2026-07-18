@@ -58,13 +58,58 @@ specific piece of conftest's mystery. The one non-negotiable gap was partial rul
       (privileged check, with the missing-nested-field-is-undefined safety reinforced from L1);
       `every` as the mirror of `some` + the empty-list vacuous-truth gotcha (guard with `count`).
       Comprehensions shown only as a one-line preview (deferred to a later lesson).
+      Post-lesson add (learner Q): new §6 "A rule body is the AND of its lines" — motivated by the
+      learner asking *where* the empty-list `count` guard goes. Reinforces L1's newline-is-AND;
+      shows the guard as an outer body line (not inside `every` braces), notes `some`-rules need no
+      guard (empty → `[]`), and empty-as-finding as a policy choice. Added a 3rd quiz + takeaway.
+      Preview section renumbered to §7. Distractors verified with opa (inside-braces stays vacuously
+      true).
       **Domain shifted here** from generic JSON (age/signup) to a real manifest: a `containers`
       array (image `:latest`, `securityContext.privileged`) — the mission's actual shape. Still
       pure Rego via `opa eval`; still uses `violations` (not conftest `deny`) — conftest is L4.
       All samples verified against `opa` 1.18.2. New reference card
       `reference/iteration-and-strings.html` (some/every table, sprintf verbs, comprehensions,
       legacy `[_]` note). Index + reference list updated.
-- [ ] **L4 — Conftest as "just OPA underneath"**: reframe `package main` + `deny contains msg if`
-      as known shapes; run on a real YAML/Dockerfile. Fold in `opa test` here.
+- [x] **L4 — Comprehensions** (`0004-comprehensions`). DONE.
+      **Reorder (2026-07-18, learner-driven):** comprehensions were originally deferred to "a later
+      lesson" (after conftest) and only previewed in L3 §7. Learner finished L3 and reported the §7
+      preview didn't land — asked to move it to the next lesson and explain it better *if* important.
+      It is (reading real `.rego` requires comprehensions; a mission success criterion), so it got a
+      full lesson and conftest slid to L5. L3 §7 demoted from a teaching preview to a light
+      forward-pointer to L4 (heading + takeaway + nav updated).
+      Covers all three forms: set `{v|…}` (dedupe/unordered), array `[v|…]` (keeps order+dups),
+      object `{k:v|…}` (keys must be unique → conflict error). Key teaching beats: the distinct-values
+      idiom `count([x|…]) == count({x|…})`; comprehension **never undefined** → empty match yields an
+      empty collection (contrast the undefined-skips-rule behaviour from L1/L3), so guard with
+      `count(…) > 0`; comprehension as a **step inside a rule body** (collect → decide/`sprintf`),
+      shown via a single summary finding using `concat(", ", names)`. Same `containers` manifest
+      domain as L3 (added `securityContext.privileged` flags). Two quizzes (array-count=3; empty→empty
+      set). Reused reference card `iteration-and-strings.html` rather than spawning a duplicate —
+      expanded its Comprehensions section (forms table + distinct-idiom/empty callout), subtitle now
+      "Lessons 3–4". Index updated.
+      NOTE: samples NOT run through opa this session (learner declined the version check; opa assumed
+      present). Built to match the already-verified forms in the reference card + Rego v1 semantics;
+      worth a quick `opa eval` sanity pass if convenient.
+- [x] **L5 — Conftest as "just OPA underneath"** (`0005-conftest-just-opa-underneath`). DONE.
+      Reframes `package main` + `deny contains msg if` as the known L2 partial-rule shape (nothing new
+      in the Rego). Two "conveniences" framing: (1) conftest parses the config file → `input`
+      (no hand-written input.json); (2) rules matched by name (`deny`/`warn`/`violation`) in pkg `main`.
+      Domain moved from L3/L4's top-level `input.containers` to a **real k8s Pod** (`input.spec.containers`)
+      — turned the path shift into a teaching beat (input = whole parsed file, paths follow its shape;
+      reinforces L1). Beats: run `conftest test pod.yaml`; each finding = one FAIL line; **exit code is
+      the enforcement point** (ties back to L1 decide-vs-enforce). deny/warn/violation table + exit
+      codes (deny=1, warn=0, violation=structured). Rule-name suffixes (`deny_privileged`) for
+      coworker-readability (mission: teach onward). Two quizzes (Dockerfile→only paths change;
+      warnings→exit 0). New reference card `reference/conftest.html` (convention table, dir layout,
+      CLI cheat sheet, output-reading, formats list). Index updated (lesson + ref).
+      **SPLIT DECISION:** NOTES originally planned L5 to "fold in `opa test`". Deferred it to L6 to
+      keep L5 short/one-win (short-lesson principle in Teaching prefs). L5 ends with a forward-pointer
+      note to it. Flag to learner in case they wanted testing bundled here.
+      **All samples VERIFIED** against real `conftest` (dev / OPA 1.15.2) in scratchpad: FAIL lines,
+      "2 tests … 2 failures" tally, exit=1 for deny; WARN + exit=0 for warn; suffixed rules collected;
+      `-o json` shows `data.main.deny`. (opa 1.18.2 also present.)
+- [ ] **L6 — Unit-testing policies with `opa test`**: `*_test.rego`, `test_` rules, feeding mock
+      `input` via `with`, red/green loop so a coworker's change can't silently break a gate.
+      (Split out of the original L5 plan.)
 - Deferred (come with/after conftest, not blocking): `input` vs `data` lookup tables;
   composing `allow` from helper rules.

@@ -1,0 +1,266 @@
+<meta charset="utf-8">
+<title>Lesson 5 — Conftest: just OPA underneath</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+
+<p class="kicker"><a href="index.html">Rego Course</a> &nbsp;·&nbsp; Lesson 5</p>
+<h1>Conftest: just OPA underneath</h1>
+<p class="subtitle">The payoff. Everything you wrote by hand — <code>input</code>, partial rules, <code>sprintf</code> — becomes a real pipeline gate over a real config file, with almost no new Rego.</p>
+
+<div class="tip">
+  <span class="label">Your win for this lesson</span>
+  By the end you can (1) point <code>conftest test</code> at a real YAML file and have it parse
+  the file into <code>input</code> for you, (2) recognise <code>deny contains msg if</code> as the
+  <a href="0002-partial-rules-sets-of-findings.html">Lesson&nbsp;2</a> partial rule you already know,
+  and (3) read conftest's PASS/FAIL output and its exit code — the moment a <em>decision</em> becomes
+  <em>enforcement</em>.
+</div>
+
+<h2>1. You have already written conftest policies</h2>
+
+<p>
+  Since <a href="0001-the-rego-mental-model.html">Lesson&nbsp;1</a> you have hand-fed OPA a JSON
+  document with <code>opa eval -i input.json</code> and collected findings into a partial set rule.
+  Conftest is the tool from the <a href="../MISSION.md">mission</a> that does exactly that, for real,
+  in your pipeline. It changes only <strong>two</strong> things about what you already do:
+</p>
+
+<div class="flow">
+  <div class="box">
+    <div class="t">a config file</div>
+    <div class="d"><code>pod.yaml</code>, a Dockerfile…</div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="box policy">
+    <div class="t">conftest</div>
+    <div class="d">parse&nbsp;→&nbsp;<code>input</code>, run <code>data.main.deny</code></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="box">
+    <div class="t">PASS / FAIL</div>
+    <div class="d">+ an exit code your CI reads</div>
+  </div>
+</div>
+
+<div class="defrow">
+  <dt>Change 1</dt>
+  <dd><code>input</code> is <strong>your config file, parsed for you</strong> — no more hand-written
+  <code>input.json</code>. YAML, JSON, Dockerfile, HCL, TOML and more, picked by file type.
+  <a href="https://www.conftest.dev/">(conftest.dev)</a></dd>
+  <dt>Change 2</dt>
+  <dd>Rule <strong>names are a convention</strong>. Conftest collects rules called
+  <code>deny</code>, <code>warn</code>, and <code>violation</code> from package
+  <code>main</code>. That's it — the rule bodies are the Rego you already write.</dd>
+</div>
+
+<h2>2. <code>deny</code> is the partial rule you know, renamed</h2>
+
+<p>
+  In Lesson&nbsp;2 you built a set of findings with a <code>contains … if</code> partial rule and
+  called it <code>violations</code>. Conftest wants that exact shape — it just insists on the name
+  <code>deny</code> (or <code>warn</code>/<code>violation</code>) inside <code>package main</code>:
+</p>
+
+<pre><code><span class="tok-kw">package</span> main
+
+<span class="tok-com"># a container using the mutable :latest tag → one finding each</span>
+deny <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.spec.containers
+	endswith(c.image, <span class="tok-str">":latest"</span>)
+	msg := sprintf(<span class="tok-str">"%q uses the mutable :latest tag"</span>, [c.name])
+}
+
+<span class="tok-com"># a container running privileged → one finding each</span>
+deny <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.spec.containers
+	c.securityContext.privileged == <span class="tok-kw">true</span>
+	msg := sprintf(<span class="tok-str">"%q runs privileged"</span>, [c.name])
+}</code></pre>
+
+<p>
+  Look closely: <code>some … in</code> (Lesson&nbsp;3), <code>sprintf</code> with <code>%q</code>
+  (Lesson&nbsp;3), two same-named partial rules unioning into one set (Lesson&nbsp;2), the
+  missing-nested-field-is-<em>undefined</em> safety on <code>securityContext.privileged</code>
+  (Lesson&nbsp;1). Nothing here is new. Only <code>package main</code> and the name <code>deny</code>
+  are conftest's ask.
+</p>
+
+<div class="note">
+  <span class="label">Why <code>input.spec.containers</code> and not <code>input.containers</code>?</span>
+  Conftest hands you the <strong>whole parsed file</strong> as <code>input</code> — so your paths
+  follow the file's real shape. A Kubernetes Pod nests its list under
+  <code>spec.containers</code>, so that's the path. Same mental model as Lesson&nbsp;1:
+  <code>input</code> is just the document, and you reach into it exactly as it's written.
+</div>
+
+<h2>3. Run it on a real file</h2>
+
+<p>
+  Conftest looks in a <code>policy/</code> directory by default. Put the rule above in
+  <code>policy/deny.rego</code>, and drop a manifest next to it:
+</p>
+
+<pre><code><span class="tok-com"># pod.yaml</span>
+<span class="tok-kw">apiVersion</span>: v1
+<span class="tok-kw">kind</span>: Pod
+<span class="tok-kw">metadata</span>:
+  <span class="tok-kw">name</span>: billing
+<span class="tok-kw">spec</span>:
+  <span class="tok-kw">containers</span>:
+    - <span class="tok-kw">name</span>: api
+      <span class="tok-kw">image</span>: corp/api:latest
+      <span class="tok-kw">securityContext</span>:
+        <span class="tok-kw">privileged</span>: <span class="tok-kw">true</span>
+    - <span class="tok-kw">name</span>: web
+      <span class="tok-kw">image</span>: nginx:1.27.3</code></pre>
+
+<pre><code>conftest test pod.yaml</code></pre>
+
+<p>The <code>api</code> container trips both rules; <code>web</code> is clean:</p>
+
+<pre><code>FAIL - pod.yaml - main - <span class="tok-str">"api"</span> runs privileged
+FAIL - pod.yaml - main - <span class="tok-str">"api"</span> uses the mutable :latest tag
+
+2 tests, 0 passed, 0 warnings, 2 failures, 0 exceptions</code></pre>
+
+<p>
+  Each FAIL line is one element of your <code>deny</code> set — the same finding strings
+  <code>opa eval</code> would have printed, now formatted for a human and a build log. And the piece
+  that makes it a <em>gate</em>:
+</p>
+
+<pre><code>echo $?     <span class="tok-com"># → 1  (any deny finding ⇒ non-zero exit)</span></code></pre>
+
+<div class="why">
+  <span class="label">This is the enforcement point</span>
+  Lesson&nbsp;1 drew the line between <em>deciding</em> (OPA's job) and <em>enforcing</em> (someone
+  else's). That "someone else" is now concrete: conftest exits <strong>non-zero</strong> when any
+  <code>deny</code> fires, and your CI step fails the build. The Rego decides; the exit code enforces.
+</div>
+
+<div class="quiz">
+  <p class="q">You point <code>conftest test</code> at a Dockerfile instead of YAML. What do you change in the policy?</p>
+  <div class="opts">
+    <button class="opt">Rename the deny rules to dockerfile handlers.</button>
+    <button class="opt" data-correct>Only the input paths, to match its shape.</button>
+    <button class="opt">Nothing changes; add a parser config flag.</button>
+  </div>
+  <div class="explain">
+    <strong>Only the paths.</strong> Conftest parses each format into the same kind of
+    <code>input</code> document; a Dockerfile just has a different shape than a Pod. The rule
+    names (<code>deny</code>), the package (<code>main</code>), and the Rego constructs are identical —
+    you reach into <code>input</code> along whatever structure the parsed file has.
+  </div>
+</div>
+
+<h2>4. deny vs warn vs violation</h2>
+
+<p>
+  Conftest recognises three rule names, differing only in <em>how hard they push</em> and, for one,
+  the <em>shape of the message</em> <a href="https://www.conftest.dev/">(conftest.dev)</a>:
+</p>
+
+<table>
+  <thead>
+    <tr><th>Rule</th><th>Message</th><th>Effect on the build</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>deny</code></td><td>a string</td><td><strong>fails</strong> — exit code&nbsp;<code>1</code></td></tr>
+    <tr><td><code>warn</code></td><td>a string</td><td>prints a warning, build <strong>still passes</strong> — exit&nbsp;<code>0</code></td></tr>
+    <tr><td><code>violation</code></td><td>a structured object</td><td>same as <code>deny</code>, but returns rich data, not just text</td></tr>
+  </tbody>
+</table>
+
+<p>
+  Reach for <code>warn</code> when something is worth flagging but shouldn't block a merge, and
+  <code>deny</code> when it must. Add a <code>warn</code> rule and rerun, and the tally distinguishes
+  them while the exit code stays&nbsp;<code>0</code> if there are no denials:
+</p>
+
+<pre><code>3 tests, 2 passed, 1 warning, 0 failures, 0 exceptions</code></pre>
+
+<div class="quiz">
+  <p class="q">A run reports <code>0 failures</code> but <code>2 warnings</code>. What exit code does conftest return?</p>
+  <div class="opts">
+    <button class="opt" data-correct>Zero, so the pipeline step passes.</button>
+    <button class="opt">One, because warnings block merges.</button>
+    <button class="opt">Two, matching the warning count.</button>
+  </div>
+  <div class="explain">
+    <strong>Zero.</strong> Only <code>deny</code> and <code>violation</code> failures make conftest
+    exit non-zero. <code>warn</code> exists precisely to surface an issue <em>without</em> failing the
+    build — the step passes and CI moves on. Use it for advisories, not hard gates.
+  </div>
+</div>
+
+<h2>5. Name your rules so a coworker can read them</h2>
+
+<p>
+  Two bare <code>deny</code> blocks work, but the mission is also to <strong>teach coworkers</strong>.
+  Conftest lets any <code>deny</code>/<code>warn</code>/<code>violation</code> rule carry an underscore
+  suffix — <code>deny_latest_tag</code>, <code>deny_privileged</code> — and still collects it
+  <a href="https://www.conftest.dev/">(conftest.dev)</a>. The suffix is documentation; conftest
+  ignores it when matching:
+</p>
+
+<pre><code><span class="tok-kw">package</span> main
+
+deny_latest_tag <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.spec.containers
+	endswith(c.image, <span class="tok-str">":latest"</span>)
+	msg := sprintf(<span class="tok-str">"%q uses the mutable :latest tag"</span>, [c.name])
+}
+
+deny_privileged <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.spec.containers
+	c.securityContext.privileged == <span class="tok-kw">true</span>
+	msg := sprintf(<span class="tok-str">"%q runs privileged"</span>, [c.name])
+}</code></pre>
+
+<p>
+  Same findings, same output — but now each rule announces what it checks. Prefer one clearly-named
+  rule per concern over one <code>deny</code> with a tangled body.
+</p>
+
+<div class="note">
+  <span class="label">Next: proving your policy is correct</span>
+  You can now gate a file. The remaining mission skill is <em>trusting</em> the gate — unit-testing
+  a policy with <code>opa test</code> (and <code>*_test.rego</code>) so a coworker's change can't
+  silently break it. That's the next lesson.
+</div>
+
+<div class="source">
+  <span class="label">Primary source — read this next</span>
+  <a href="https://www.conftest.dev/">Conftest documentation</a>. The authoritative reference for
+  the <code>deny</code>/<code>warn</code>/<code>violation</code> convention, the <code>policy/</code>
+  directory, supported input formats, and every <code>conftest test</code> flag.
+</div>
+
+<div class="takeaways">
+  <span class="label">Main takeaways</span>
+  <ul>
+    <li>Conftest is <strong>OPA with two conveniences</strong>: it parses your config file into <code>input</code>, and it collects rules by name.</li>
+    <li>A <code>deny contains msg if</code> rule is the <a href="0002-partial-rules-sets-of-findings.html">Lesson&nbsp;2</a> partial set rule — just named <code>deny</code> inside <code>package main</code>.</li>
+    <li><code>input</code> is the <strong>whole parsed file</strong>, so paths follow its real shape (a Pod's list lives at <code>input.spec.containers</code>).</li>
+    <li><code>conftest test file.yaml</code> reads policies from <code>policy/</code> by default; each finding is one FAIL line.</li>
+    <li><strong><code>deny</code></strong> fails the build (exit <code>1</code>); <strong><code>warn</code></strong> advises but passes (exit <code>0</code>); <strong><code>violation</code></strong> is <code>deny</code> with structured data.</li>
+    <li>The exit code is the <strong>enforcement point</strong> — the decision your Rego computes becomes a CI pass/fail.</li>
+    <li>Suffix rules (<code>deny_privileged</code>) to make each check self-documenting for coworkers.</li>
+  </ul>
+</div>
+
+<div class="ask">
+  <strong>Stuck or curious?</strong> I'm your teacher for this course — ask me anything: how conftest
+  parses a Dockerfile vs YAML, when to prefer <code>violation</code>'s structured output, how to run
+  it against many files or in CI, using a package other than <code>main</code>, or wiring one of your
+  real manifests through it. Just ask in the chat.
+</div>
+
+<div class="lesson-nav">
+  <span><a href="0004-comprehensions.html">← Lesson 4</a></span>
+  <span><a href="../reference/conftest.html">→ Reference: Conftest</a></span>
+  <span><a href="index.html">Course index</a></span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+<script src="../assets/copy-code.js"></script>

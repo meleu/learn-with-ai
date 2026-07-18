@@ -28,6 +28,14 @@
     <a href="0003-iterating-over-config.html">Iterating Over Config</a>
     — <code>some&nbsp;…&nbsp;in</code> and <code>every</code> over lists; detailed messages with <code>sprintf</code>.
   </li>
+  <li>
+    <a href="0004-comprehensions.html">Comprehensions</a>
+    — collect values, not just verdicts: set / array / object <code>{v&nbsp;|&nbsp;…}</code>, and using them inside a rule.
+  </li>
+  <li>
+    <a href="0005-conftest-just-opa-underneath.html">Conftest: just OPA underneath</a>
+    — run your Rego on a real config file; <code>deny</code>/<code>warn</code>/<code>violation</code> and the exit code that gates the build.
+  </li>
 </ol>
 
 <h2>Reference</h2>
@@ -35,4 +43,5 @@
   <li><a href="../reference/rego-toolbox.html">Rego Mental Model &amp; Toolbox</a> — one-page card: glossary, conftest convention, CLI cheat sheet.</li>
   <li><a href="../reference/rule-types.html">Complete vs Partial Rules</a> — one-page card: the two rule shapes side by side, and how each prints.</li>
   <li><a href="../reference/iteration-and-strings.html">Iteration &amp; Strings</a> — one-page card: <code>some</code>/<code>every</code>, comprehensions, and <code>sprintf</code> verbs.</li>
+  <li><a href="../reference/conftest.html">Conftest</a> — one-page card: the <code>deny</code>/<code>warn</code>/<code>violation</code> convention, CLI cheat sheet, and exit codes.</li>
 </ul>
