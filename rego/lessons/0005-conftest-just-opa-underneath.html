@@ -225,8 +225,9 @@ deny_privileged <span class="tok-kw">contains</span> msg <span class="tok-kw">if
 <div class="note">
   <span class="label">Next: proving your policy is correct</span>
   You can now gate a file. The remaining mission skill is <em>trusting</em> the gate — unit-testing
-  a policy with <code>opa test</code> (and <code>*_test.rego</code>) so a coworker's change can't
-  silently break it. That's the next lesson.
+  a policy with <code>conftest verify</code> and <code>test_</code> rules (mock input via
+  <code>with input as …</code>) so a coworker's change can't silently break it. Same tool, same
+  convention. That's the next lesson.
 </div>
 
 <div class="source">

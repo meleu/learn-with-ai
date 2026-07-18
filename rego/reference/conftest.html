@@ -76,7 +76,10 @@ conftest test pod.yaml --namespace kubernetes
 conftest test pod.yaml --all-namespaces
 
 <span class="tok-com"># check the gate in a script</span>
-conftest test pod.yaml; echo $?           <span class="tok-com"># 0 = pass, 1 = a deny fired</span></code></pre>
+conftest test pod.yaml; echo $?           <span class="tok-com"># 0 = pass, 1 = a deny fired</span>
+
+<span class="tok-com"># unit-test the policies themselves (test_ rules, no input file)</span>
+conftest verify -p policy/                 <span class="tok-com"># 0 = all pass, 1 = a test failed</span></code></pre>
 
 <h2>Reading the output</h2>
 <pre><code>FAIL - pod.yaml - main - <span class="tok-str">"api"</span> runs privileged

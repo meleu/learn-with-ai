@@ -9,7 +9,7 @@ enough in the fundamentals to teach your coworkers how to write and reason about
 - Explain, to a coworker, why Rego/OPA exists and what problem policy decoupling solves.
 - Read a `.rego` file and correctly describe what decision it computes for a given input.
 - Write a conftest policy (`deny`/`warn`) that catches a real misconfiguration in a YAML/JSON/Dockerfile.
-- Run and debug policies locally with `conftest` and `opa` (eval, fmt, test).
+- Run and debug policies locally with `conftest` (`test`, `verify`) — and the OPA engine it runs underneath.
 - Onboard a coworker: point them at a lesson/reference and answer their questions.
 
 ## Constraints

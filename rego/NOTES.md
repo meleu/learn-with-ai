@@ -17,6 +17,14 @@
   `deny`/`warn` convention. Conftest is introduced only after the Rego fundamentals are
   solid, framed as "just OPA underneath". Example domain for fundamentals: age validation
   / generic JSON, not pipeline manifests, to keep working memory low.
+- **Conftest-first tooling from L5 onward (learner request, 2026-07-18).** Once conftest is
+  introduced (L5), use **conftest tooling** for hands-on tasks, not the `opa` CLI. Concretely:
+  unit-test with `conftest verify` (+ `test_` rules, `with input as`), NOT `opa test`. The
+  "it's just OPA underneath" framing stays (good mental model), but `opa eval`/`opa test` are
+  no longer what we hand the learner to run day-to-day. `opa fmt` is the one likely exception
+  worth keeping (formatting). MISSION success criterion still literally lists "opa (eval, fmt,
+  test)"; left as-is for now since opa underlies conftest — revisit with learner if they want
+  the wording changed.
 - **Never touch the learner's code files — no creating *and no editing*.**
 - Everything under `exercises/` belongs to the learner. Never write into
   `exercises/` directly — not even to fix, improve, or keep it in sync with lesson's samples.
@@ -105,11 +113,18 @@ specific piece of conftest's mystery. The one non-negotiable gap was partial rul
       **SPLIT DECISION:** NOTES originally planned L5 to "fold in `opa test`". Deferred it to L6 to
       keep L5 short/one-win (short-lesson principle in Teaching prefs). L5 ends with a forward-pointer
       note to it. Flag to learner in case they wanted testing bundled here.
+      **Post-lesson update (learner, 2026-07-18):** learner asked to test with **`conftest verify`**
+      instead of `opa test`, and to favour conftest tooling from here on (see Teaching prefs).
+      Updated L5's forward-pointer note (opa test → conftest verify + `test_` rules + `with input as`)
+      and added `conftest verify` to the conftest reference-card CLI cheat sheet. L6 retargeted below.
       **All samples VERIFIED** against real `conftest` (dev / OPA 1.15.2) in scratchpad: FAIL lines,
       "2 tests … 2 failures" tally, exit=1 for deny; WARN + exit=0 for warn; suffixed rules collected;
       `-o json` shows `data.main.deny`. (opa 1.18.2 also present.)
-- [ ] **L6 — Unit-testing policies with `opa test`**: `*_test.rego`, `test_` rules, feeding mock
-      `input` via `with`, red/green loop so a coworker's change can't silently break a gate.
-      (Split out of the original L5 plan.)
+- [ ] **L6 — Unit-testing policies with `conftest verify`**: `*_test.rego`, `test_` rules, feeding
+      mock `input` via `with input as …`, red/green loop so a coworker's change can't silently break a
+      gate. `conftest verify` takes NO input file; exit 0 all-pass / 1 on failure (both verified in
+      scratchpad against real conftest). Assert against the finding set, e.g.
+      `deny["\"api\" runs privileged"] with input as {…}` and `count(deny) == 0 with input as {…}`.
+      (Split out of the original L5 plan; retargeted from `opa test` per learner's conftest-first ask.)
 - Deferred (come with/after conftest, not blocking): `input` vs `data` lookup tables;
   composing `allow` from helper rules.
