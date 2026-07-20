@@ -30,9 +30,18 @@
 
 Reference cards live in `reference/`; shared styling in `assets/style.css`.
 
-- [x] **L1** — Why Rego / what a `.rego` is / tools, via pure Rego `opa eval`. Age-validation
-      example: true / false-via-`default` / undefined. Conftest = single "coming later" note.
-      Key beat carried forward: missing nested field is undefined (safe).
+- [x] **L1** — Why Rego / what a `.rego` is / tools, via pure Rego `opa eval`. **Rewritten
+      around the learner's own epiphany: a `.rego` file is rules that BUILD a JSON document;
+      everything lives in one JSON tree (`input` + `data`, rule outputs under `data`).**
+      Shows `opa eval 'data.example'` printing the whole doc `{"allow":true}` before querying
+      one node. **`default` deferred (learner request): the first example is the bare `allow if`
+      rule — no `default`. Ordering is happy path (age 21 → `{"allow":true}`) → undefined
+      (age 16 → `{}`, MISSING KEY) → THEN `default` introduced in §4 subsection "Guaranteeing
+      the key" as the fix (age 16 → `{"allow":false}`).** So `default` is motivated by the
+      undefined problem, not dropped in cold. Two asterisks callout: JSON data-model (not
+      literal JSON; sets aren't JSON) + undefined is the one non-value. Conftest = single
+      "coming later" note. All outputs re-verified vs opa 1.18.2. Key beat carried forward:
+      missing nested field is undefined (safe).
 - [x] **L2** — Partial set rules (`0002`). `violations contains msg if …`: union across
       same-named defs, empty set vs complete-rule undefined, fold to verdict with `count() > 0`.
       Framed as the shape of conftest `deny` (forward-pointer only; no conftest conventions —

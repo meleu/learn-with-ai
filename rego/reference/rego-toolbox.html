@@ -9,9 +9,10 @@
 
 <h2>The one-sentence model</h2>
 <div class="why">
-  A <code>.rego</code> file is a set of <strong>declarative definitions</strong> that, given
-  an <code>input</code> document, <strong>computes a decision</strong>. It decides; something
-  else enforces.
+  A <code>.rego</code> file is <strong>not</strong> a script that runs top-to-bottom — it is a
+  set of <strong>declarative rules that build a JSON document</strong>. You hand OPA some JSON
+  <code>input</code>; it evaluates your rules; it hands a JSON document back. A <em>decision</em>
+  is just a value sitting in that document. OPA decides; something else enforces.
 </div>
 
 <div class="flow">
@@ -19,7 +20,7 @@
   <div class="arrow">→</div>
   <div class="box policy"><div class="t">rules</div><div class="d">your policy</div></div>
   <div class="arrow">→</div>
-  <div class="box"><div class="t">decision</div><div class="d">value out</div></div>
+  <div class="box"><div class="t">a JSON document</div><div class="d">what the rules built</div></div>
 </div>
 
 <h2>Glossary</h2>
@@ -27,27 +28,27 @@
   <dt>Policy decoupling</dt>
   <dd>Moving policy decisions out of application code into a dedicated engine (OPA). The reason OPA exists.</dd>
   <dt>Decision</dt>
-  <dd>The value OPA computes (e.g. <code>allow = true</code>). OPA never acts on it.</dd>
+  <dd>Not a special thing — just a value the rules put in the document (e.g. <code>allow: true</code>) that you read back. OPA never acts on it.</dd>
   <dt>Enforcement</dt>
   <dd>Acting on the decision — done by the caller (your app, your pipeline).</dd>
   <dt><code>input</code></dt>
-  <dd>The document being evaluated, supplied per query with <code>opa eval -i</code>.</dd>
+  <dd>One root of the tree: the JSON for <em>this</em> question, supplied per query with <code>opa eval -i</code>.</dd>
   <dt><code>data</code></dt>
-  <dd>Persistent, pre-loaded context (config, lookup tables) available to every rule.</dd>
+  <dd>The other root: pre-loaded context you supply (config, lookup tables) <strong>plus the documents your rules generate</strong>. Your policy's output lives under <code>data</code>.</dd>
   <dt>Rule</dt>
-  <dd>A definition that <em>generates the content of a document</em>. The unit everything is built from.</dd>
+  <dd>A definition that <em>generates content in the document</em> — it contributes a value to the tree when its body is satisfied. The unit everything is built from.</dd>
   <dt>Rule body</dt>
   <dd>Conditions joined by AND. OPA looks for variable bindings that make them all true.</dd>
   <dt>Undefined</dt>
-  <dd>The result when a rule body can't be satisfied. <strong>Not</strong> <code>false</code> — it means "no value / doesn't apply".</dd>
+  <dd>What a rule contributes when its body can't be satisfied: <strong>nothing</strong> — the key is simply <strong>absent</strong> from the document. <strong>Not</strong> <code>false</code> or <code>null</code> (those are real values that <em>are</em> in the document).</dd>
   <dt>Complete rule</dt>
   <dd>Produces a single value (e.g. <code>allow</code>). Conflicting values → error.</dd>
   <dt>Partial rule</dt>
   <dd>Builds a set or object incrementally; multiple definitions union together. (Later lesson.)</dd>
   <dt>Package</dt>
-  <dd>Namespace for a module. The rule <code>allow</code> in <code>package example</code> lives at <code>data.example.allow</code>.</dd>
+  <dd>The folder in the tree your rules write into. The rule <code>allow</code> in <code>package example</code> lives at <code>data.example.allow</code>.</dd>
   <dt><code>default</code></dt>
-  <dd>Fallback value for a complete rule when all its bodies are undefined.</dd>
+  <dd>Fallback that <strong>guarantees the key is always present</strong> — turns an absent (undefined) key into a real value like <code>false</code> when no body fires.</dd>
 </dl>
 
 <h2>Canonical policy shape (OPA 1.0)</h2>
@@ -60,17 +61,17 @@
 allow <span class="tok-kw">if</span> input.age &gt;= 18</code></pre>
 <p style="font-family:var(--sans);font-size:0.85rem;color:var(--ink-soft);margin-top:-0.6rem">
   <code>if</code> = the rule has a body · constants (<code>default …</code>) need no <code>if</code> ·
-  no <code>default</code> ⇒ a failing body yields <em>undefined</em>, not <code>false</code>.
+  no <code>default</code> ⇒ a failing body leaves the key <em>absent</em> (undefined), not <code>false</code>.
 </p>
 
 <h2>The three outcomes of a complete rule</h2>
 <dl class="defrow">
   <dt>true</dt>
-  <dd>Body satisfied → rule takes its value.</dd>
+  <dd>Body satisfied → the rule adds its value to the document (<code>allow: true</code>).</dd>
   <dt>false</dt>
-  <dd>Only if a <code>default</code> (or another body) supplies it.</dd>
+  <dd>A real, present value — only if a <code>default</code> (or another body) supplies it.</dd>
   <dt>undefined</dt>
-  <dd>Body fails and no default → no value at all. <code>opa eval --format pretty</code> prints <code>undefined</code>.</dd>
+  <dd>Body fails and no default → the rule adds <strong>nothing</strong>; the key is <strong>absent</strong> from the document (whole tree comes back <code>{}</code>). Querying that exact path prints <code>undefined</code>.</dd>
 </dl>
 
 <h2>CLI cheat sheet (opa)</h2>

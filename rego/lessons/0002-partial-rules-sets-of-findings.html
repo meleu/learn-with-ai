@@ -140,11 +140,12 @@ violations <span class="tok-kw">contains</span> <span class="tok-str">"username 
 
 <div class="why">
   <span class="label">The one subtlety that trips everyone</span>
-  When no body holds, a partial rule is the <strong>empty set <code>[]</code></strong> — a real,
-  defined value. It is <em>not</em> undefined, and it needs <strong>no <code>default</code></strong>.
-  Contrast Lesson 1: a <em>complete</em> rule whose body fails yields <em>undefined</em>. Partial
-  rules start empty and fill up; complete rules start at nothing and need a <code>default</code>
-  to answer when they can't fire.
+  When no body holds, the <code>violations</code> key is <strong>present in the document</strong>,
+  holding the <strong>empty set <code>[]</code></strong> — a real, defined value. It is <em>not</em>
+  undefined, and it needs <strong>no <code>default</code></strong>. Contrast Lesson 1: a
+  <em>complete</em> rule whose body fails is <em>undefined</em> — its key is simply <em>absent</em>
+  from the document. Partial rules start empty and fill up; complete rules leave no key at all and
+  need a <code>default</code> to guarantee one when they can't fire.
 </div>
 
 <div class="quiz">
