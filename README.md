@@ -10,4 +10,5 @@ See Matt's skills at <https://github.com/mattpocock/skills>.
 
 - [Learning Rego](./rego/lessons/)
 - [Drums: faster single stroke rolls](./drums/lessons/)
+- [Building CLI tools in Go](./cobra/lessons/)
 

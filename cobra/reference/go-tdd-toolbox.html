@@ -1,0 +1,125 @@
+<meta charset="utf-8">
+<title>Reference — Go TDD & CLI Toolbox</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+
+<p class="kicker"><a href="../lessons/index.html">Go CLIs Course</a> &nbsp;·&nbsp; Reference</p>
+<h1>Go TDD &amp; CLI Toolbox</h1>
+<p class="subtitle">The compressed essentials: the red-green-refactor loop, the test commands, table tests, <code>math/rand/v2</code>, and the clig.dev rules this course holds to. Built to print.</p>
+
+<h2>The TDD loop</h2>
+<div class="tdd">
+  <div class="step red"><div class="t">1 · RED</div><div class="d">Write one small failing test. Run it. Watch it fail (or fail to compile).</div></div>
+  <div class="arrow">→</div>
+  <div class="step green"><div class="t">2 · GREEN</div><div class="d">Write the <em>least</em> code that makes it pass. Nothing more.</div></div>
+  <div class="arrow">→</div>
+  <div class="step refactor"><div class="t">3 · REFACTOR</div><div class="d">Improve names/shape with tests green. Then loop.</div></div>
+</div>
+<p><strong>Rule:</strong> never write production code except to make a failing test pass. A compile
+error (<code>undefined: Foo</code>) counts as a legitimate red.</p>
+
+<h2>The commands</h2>
+<table>
+  <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>go mod init &lt;path&gt;</code></td><td>Start a module (e.g. <code>github.com/you/rndm</code>). Creates <code>go.mod</code>.</td></tr>
+    <tr><td><code>go test ./...</code></td><td>Run every test in the module. Pass = <code>ok</code>, fail = <code>FAIL</code>.</td></tr>
+    <tr><td><code>go test -v</code></td><td>Verbose: prints each <code>=== RUN</code> / <code>--- PASS</code> line.</td></tr>
+    <tr><td><code>go test -run TestName</code></td><td>Run only tests matching a regexp.</td></tr>
+    <tr><td><code>go build -o rndm .</code></td><td>Compile the package into a binary named <code>rndm</code>.</td></tr>
+    <tr><td><code>go run .</code></td><td>Compile + run in one step (no binary left behind).</td></tr>
+    <tr><td><code>go vet ./...</code></td><td>Static checks for suspicious code. Keep it clean.</td></tr>
+    <tr><td><code>gofmt -l .</code></td><td>Lists unformatted files. Empty output = all formatted.</td></tr>
+  </tbody>
+</table>
+
+<h2>Test anatomy</h2>
+<pre><code><span class="tok-com">// file: rndm_test.go — must end in _test.go</span>
+<span class="tok-kw">package</span> main
+
+<span class="tok-kw">import</span> <span class="tok-str">"testing"</span>
+
+<span class="tok-com">// func name starts with Test, takes *testing.T</span>
+<span class="tok-kw">func</span> <span class="tok-fn">TestNumberInRange</span>(t *testing.T) {
+	got := <span class="tok-fn">Number</span>()
+	<span class="tok-kw">if</span> got &lt; <span class="tok-num">0</span> || got &gt; <span class="tok-num">32767</span> {
+		t.<span class="tok-fn">Errorf</span>(<span class="tok-str">"Number() = %d; want [0,32767]"</span>, got)
+	}
+}</code></pre>
+<dl class="defrow">
+  <dt><code>t.Errorf</code></dt><dd>Mark failed, <strong>keep going</strong>. Use for independent checks.</dd>
+  <dt><code>t.Fatalf</code></dt><dd>Mark failed, <strong>stop this test now</strong>. Use when continuing is pointless.</dd>
+  <dt><code>t.Helper()</code></dt><dd>Call inside a helper so failures report the caller's line.</dd>
+</dl>
+
+<h2>Table-driven tests</h2>
+<p>The idiomatic Go pattern — one test, many cases, each an isolated subtest via <code>t.Run</code>:</p>
+<pre><code><span class="tok-kw">func</span> <span class="tok-fn">TestClamp</span>(t *testing.T) {
+	cases := []<span class="tok-kw">struct</span> {
+		name     <span class="tok-kw">string</span>
+		in, want <span class="tok-kw">int</span>
+	}{
+		{<span class="tok-str">"below"</span>, -5, 0},
+		{<span class="tok-str">"inside"</span>, 3, 3},
+		{<span class="tok-str">"above"</span>, 99, 10},
+	}
+	<span class="tok-kw">for</span> _, c := <span class="tok-kw">range</span> cases {
+		t.<span class="tok-fn">Run</span>(c.name, <span class="tok-kw">func</span>(t *testing.T) {
+			<span class="tok-kw">if</span> got := <span class="tok-fn">Clamp</span>(c.in); got != c.want {
+				t.<span class="tok-fn">Errorf</span>(<span class="tok-str">"Clamp(%d) = %d; want %d"</span>, c.in, got, c.want)
+			}
+		})
+	}
+}</code></pre>
+
+<h2>Testing randomness</h2>
+<p>You cannot assert a random value equals a constant. Two honest strategies:</p>
+<table>
+  <thead><tr><th>Strategy</th><th>How</th></tr></thead>
+  <tbody>
+    <tr><td>Test a <strong>property</strong></td><td>Draw many times; assert every draw is in range / non-negative / etc.</td></tr>
+    <tr><td><strong>Inject</strong> the source</td><td>Pass a seeded <code>*rand.Rand</code> in tests so the sequence is fixed and exactly assertable (later lesson).</td></tr>
+  </tbody>
+</table>
+
+<h2><code>math/rand/v2</code> quick ref</h2>
+<table>
+  <thead><tr><th>Call</th><th>Result</th></tr></thead>
+  <tbody>
+    <tr><td><code>rand.IntN(n)</code></td><td>int in <code>[0, n)</code>. <strong>Panics if n ≤ 0.</strong></td></tr>
+    <tr><td><code>rand.N(n)</code></td><td>Generic version for any integer type.</td></tr>
+    <tr><td><code>rand.Float64()</code></td><td>float64 in <code>[0.0, 1.0)</code>.</td></tr>
+    <tr><td><code>rand.Shuffle(n, swap)</code></td><td>Shuffle n items via a swap func.</td></tr>
+    <tr><td><code>rand.New(rand.NewPCG(a, b))</code></td><td>A <em>seeded</em> <code>*rand.Rand</code> → reproducible sequence.</td></tr>
+  </tbody>
+</table>
+<div class="note">
+  <span class="label">v2 vs v1</span>
+  Top-level funcs in <code>math/rand/v2</code> are <strong>auto-seeded</strong> (different each run)
+  and safe for concurrent use — no <code>rand.Seed(...)</code> call, which v2 removed. Seed
+  explicitly only when you <em>want</em> reproducibility, via a <code>Source</code> (<code>PCG</code>/<code>ChaCha8</code>).
+</div>
+
+<h2>clig.dev rules we hold to</h2>
+<dl class="defrow">
+  <dt>stdout</dt><dd>The program's actual output (the number). Clean, one value per line, pipeable.</dd>
+  <dt>stderr</dt><dd>Errors, logs, usage, diagnostics — everything that isn't the result.</dd>
+  <dt>exit 0</dt><dd>Success. Non-zero on failure so scripts can branch on it.</dd>
+  <dt>compose</dt><dd>“Expect the output of every program to become the input to another.”</dd>
+  <dt>humans first</dt><dd>Readable by a person, still parseable by a machine.</dd>
+</dl>
+
+<div class="source">
+  <span class="label">Primary sources</span>
+  <a href="https://quii.gitbook.io/learn-go-with-tests">Learn Go with Tests</a> ·
+  <a href="https://clig.dev/">clig.dev</a> ·
+  <a href="https://pkg.go.dev/math/rand/v2">math/rand/v2</a> ·
+  <a href="https://pkg.go.dev/testing">testing</a>
+</div>
+
+<div class="lesson-nav">
+  <span><a href="../lessons/0001-test-drive-rndm.html">← Lesson 1</a></span>
+  <span><a href="../lessons/index.html">Course index</a></span>
+</div>
+
+<script src="../assets/copy-code.js"></script>

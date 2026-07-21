@@ -1,0 +1,319 @@
+/* ============================================================
+   Shared course stylesheet — Go CLIs (rndm → Cobra), TDD
+   Tufte-inspired: readable serif body, generous margins,
+   restrained palette, prints cleanly. Go-blue accents.
+   ============================================================ */
+
+:root {
+  --bg:        #fdfdfb;
+  --ink:       #1c1e22;
+  --ink-soft:  #4d525a;
+  --rule:      #e2e4e2;
+  --accent:    #00637f;   /* Go blue — links, emphasis */
+  --accent-2:  #327a6b;   /* gopher teal — diagrams, secondary */
+  --code-bg:   #f2f3f0;
+  --code-ink:  #22262b;
+  --good:      #2f6f3e;
+  --bad:       #9a2617;
+  --warn:      #8a6d1a;
+  --card-bg:   #f4f6f3;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans:  ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono:  ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:       #17191c;
+    --ink:      #e8eae6;
+    --ink-soft: #a8ada6;
+    --rule:     #333733;
+    --accent:   #5ec8e0;
+    --accent-2: #7fc4b2;
+    --code-bg:  #202327;
+    --code-ink: #e0e2dd;
+    --good:     #7fc08a;
+    --bad:      #e8897a;
+    --warn:     #d6b866;
+    --card-bg:  #1f2225;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 1.5rem; -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.55;
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 6rem;
+}
+
+/* ---------- Kicker / breadcrumb ---------- */
+.kicker {
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 0.6rem;
+}
+.kicker a { color: var(--ink-soft); }
+
+/* ---------- Headings ---------- */
+h1, h2, h3 { font-family: var(--sans); line-height: 1.2; font-weight: 650; }
+h1 { font-size: 2.05rem; margin: 0 0 0.4rem; letter-spacing: -0.01em; }
+h2 {
+  font-size: 1.3rem; margin: 2.8rem 0 0.8rem;
+  padding-top: 0.9rem; border-top: 1px solid var(--rule);
+}
+h3 { font-size: 1.02rem; margin: 1.8rem 0 0.5rem; color: var(--ink-soft); }
+
+.subtitle {
+  font-family: var(--sans);
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  font-weight: 400;
+  margin: 0 0 2rem;
+}
+
+p { margin: 0 0 1rem; }
+strong { font-weight: 650; }
+
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+a:hover { border-bottom-color: var(--accent); }
+
+/* ---------- Lists ---------- */
+ul, ol { margin: 0 0 1rem; padding-left: 1.3rem; }
+li { margin: 0.3rem 0; }
+
+/* ---------- Code ---------- */
+code {
+  font-family: var(--mono);
+  font-size: 0.86em;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+pre {
+  position: relative;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  padding: 1rem 1.1rem;
+  border-radius: 8px;
+  border: 1px solid var(--rule);
+  overflow-x: auto;
+  margin: 0 0 1.2rem;
+}
+pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+
+/* syntax accents (applied via spans) */
+.tok-kw   { color: var(--accent); font-weight: 600; }
+.tok-str  { color: var(--good); }
+.tok-com  { color: var(--ink-soft); font-style: italic; }
+.tok-fn   { color: var(--accent-2); }
+.tok-num  { color: var(--warn); }
+
+/* diff shading for red/green steps */
+.tok-red  { color: var(--bad); }
+.tok-green{ color: var(--good); }
+
+/* ---------- Callouts ---------- */
+.note, .why, .tip, .takeaways {
+  font-family: var(--sans);
+  font-size: 0.92rem;
+  border-left: 3px solid var(--accent-2);
+  background: var(--card-bg);
+  padding: 0.8rem 1rem;
+  border-radius: 0 6px 6px 0;
+  margin: 0 0 1.3rem;
+}
+.note  { border-left-color: var(--accent-2); }
+.tip   { border-left-color: var(--good); }
+.why   { border-left-color: var(--accent); }
+.takeaways { border-left-color: var(--accent); }
+.note .label, .why .label, .tip .label, .takeaways .label {
+  display: block;
+  font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-soft); margin-bottom: 0.25rem;
+}
+.takeaways ul { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+.takeaways li { margin: 0.3rem 0; }
+.takeaways li:first-child { margin-top: 0; }
+
+/* ---------- TDD cycle badge row ---------- */
+.tdd {
+  font-family: var(--sans);
+  display: flex; align-items: stretch; gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 1.5rem 0;
+}
+.tdd .step {
+  flex: 1 1 0; min-width: 8rem;
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 0.8rem;
+  text-align: center;
+}
+.tdd .step .t { font-weight: 650; font-size: 0.92rem; }
+.tdd .step .d { font-size: 0.76rem; color: var(--ink-soft); margin-top: 0.2rem; }
+.tdd .step.red   { border-color: var(--bad);  border-width: 2px; }
+.tdd .step.green { border-color: var(--good); border-width: 2px; }
+.tdd .step.refactor { border-color: var(--accent-2); border-width: 2px; }
+.tdd .arrow { align-self: center; color: var(--ink-soft); font-size: 1.4rem; }
+
+/* ---------- Mental-model / flow diagram ---------- */
+.flow {
+  font-family: var(--sans);
+  display: flex; align-items: stretch; gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 1.5rem 0;
+}
+.flow .box {
+  flex: 1 1 0; min-width: 7rem;
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 0.8rem;
+  text-align: center;
+}
+.flow .box .t { font-weight: 650; font-size: 0.92rem; }
+.flow .box .d { font-size: 0.76rem; color: var(--ink-soft); margin-top: 0.2rem; }
+.flow .box.policy { border-color: var(--accent); border-width: 2px; }
+.flow .arrow { align-self: center; color: var(--ink-soft); font-size: 1.4rem; }
+.flow .box code { font-size: 0.8rem; }
+
+/* ---------- Definition rows ---------- */
+.defrow {
+  display: grid; grid-template-columns: 8rem 1fr; gap: 0.4rem 1rem;
+  font-family: var(--sans); font-size: 0.92rem;
+  margin: 1rem 0;
+}
+.defrow dt { font-weight: 650; }
+.defrow dt code { font-size: 0.85rem; }
+.defrow dd { margin: 0; color: var(--ink-soft); }
+
+/* ---------- Tables (reference cards) ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--sans);
+  font-size: 0.86rem;
+  margin: 1.2rem 0 1.5rem;
+  display: block;
+  overflow-x: auto;
+}
+thead th {
+  text-align: left;
+  font-weight: 650;
+  color: var(--ink);
+  border-bottom: 2px solid var(--rule);
+  padding: 0.5rem 0.7rem;
+}
+tbody td {
+  border-bottom: 1px solid var(--rule);
+  padding: 0.5rem 0.7rem;
+  vertical-align: top;
+  color: var(--ink-soft);
+}
+tbody td:first-child { color: var(--ink); white-space: nowrap; }
+tbody tr:last-child td { border-bottom: none; }
+table code { font-size: 0.82em; }
+
+/* ---------- Quiz widget (see assets/quiz.js) ---------- */
+.quiz {
+  font-family: var(--sans);
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 1.1rem 1.2rem;
+  margin: 1.6rem 0;
+}
+.quiz .qnum {
+  font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-soft); margin-bottom: 0.4rem;
+}
+.quiz .q { font-weight: 650; margin: 0 0 0.8rem; font-family: var(--sans); }
+.quiz .opts { display: flex; flex-direction: column; gap: 0.5rem; }
+.quiz button.opt {
+  font-family: var(--sans); font-size: 0.92rem; text-align: left;
+  color: var(--ink); background: var(--bg);
+  border: 1px solid var(--rule); border-radius: 7px;
+  padding: 0.6rem 0.8rem; cursor: pointer; transition: border-color .15s, background .15s;
+}
+.quiz button.opt:hover:not(:disabled) { border-color: var(--accent-2); }
+.quiz button.opt:disabled { cursor: default; opacity: 0.75; }
+.quiz button.opt.correct   { border-color: var(--good); background: color-mix(in srgb, var(--good) 12%, var(--bg)); opacity: 1; }
+.quiz button.opt.incorrect { border-color: var(--bad);  background: color-mix(in srgb, var(--bad) 12%, var(--bg)); opacity: 1; }
+.quiz .explain {
+  display: none; margin-top: 0.9rem; padding-top: 0.8rem;
+  border-top: 1px dashed var(--rule); font-size: 0.9rem; color: var(--ink-soft);
+}
+.quiz .explain.show { display: block; }
+.quiz .explain strong { color: var(--ink); }
+
+/* ---------- Copy button (see assets/copy-code.js) ---------- */
+.copy-btn {
+  position: absolute; top: 0.5rem; right: 0.5rem;
+  font-family: var(--sans); font-size: 0.68rem;
+  background: var(--bg); color: var(--ink-soft);
+  border: 1px solid var(--rule); border-radius: 5px;
+  padding: 0.2rem 0.5rem; cursor: pointer; opacity: 0; transition: opacity .15s;
+}
+pre:hover .copy-btn { opacity: 1; }
+.copy-btn.copied { color: var(--good); border-color: var(--good); }
+
+/* ---------- Footer / nav ---------- */
+.lesson-nav {
+  margin-top: 3.5rem; padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--sans); font-size: 0.9rem;
+  display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+}
+.ask {
+  font-family: var(--sans); font-size: 0.92rem;
+  background: var(--card-bg); border: 1px dashed var(--rule);
+  border-radius: 8px; padding: 0.9rem 1.1rem; margin: 2.5rem 0 0;
+}
+.ask strong { color: var(--accent); }
+
+.source {
+  font-family: var(--sans); font-size: 0.9rem;
+  background: var(--card-bg); border-left: 3px solid var(--good);
+  border-radius: 0 6px 6px 0; padding: 0.8rem 1rem; margin: 1.5rem 0;
+}
+.source .label { display:block; font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:0.25rem; }
+
+/* ---------- Index / course card list ---------- */
+.course-list { list-style: none; padding: 0; margin: 1.5rem 0; }
+.course-list li {
+  font-family: var(--sans);
+  border: 1px solid var(--rule); border-radius: 8px;
+  padding: 0.9rem 1.1rem; margin: 0 0 0.8rem; background: var(--card-bg);
+}
+.course-list .n { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); }
+.course-list .ti { font-weight: 650; font-size: 1rem; display: block; margin: 0.15rem 0; }
+.course-list .de { font-size: 0.85rem; color: var(--ink-soft); }
+.course-list li.todo { opacity: 0.55; border-style: dashed; }
+
+/* ---------- Print ---------- */
+@media print {
+  :root {
+    --bg:#fff; --ink:#000; --ink-soft:#333; --rule:#ccc;
+    --code-bg:#f2f2f2; --code-ink:#000; --card-bg:#f7f7f7;
+  }
+  body { max-width: none; padding: 0; font-size: 11pt; }
+  h2 { page-break-after: avoid; }
+  pre, .flow, .tdd, .quiz, table { page-break-inside: avoid; }
+  .lesson-nav, .ask, .copy-btn { display: none; }
+  a { color: #000; border: none; }
+}

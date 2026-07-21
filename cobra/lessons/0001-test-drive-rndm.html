@@ -1,0 +1,297 @@
+<meta charset="utf-8">
+<title>Lesson 1 — Test-drive rndm: red, green, refactor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+
+<p class="kicker"><a href="index.html">Go CLIs Course</a> &nbsp;·&nbsp; Lesson 1</p>
+<h1>Test-drive <code>rndm</code>: red → green → refactor</h1>
+<p class="subtitle">Build the first version of <code>rndm</code> — a stand-in for bash's <code>echo $RANDOM</code> — by writing the test <em>before</em> the code. One loop of the TDD cycle, one working binary.</p>
+
+<div class="tip">
+  <span class="label">Your win for this lesson</span>
+  By the end you will have (1) driven a Go function into existence from a <em>failing test first</em>,
+  (2) learned the one honest way to test something random — assert a <strong>property</strong>, not a
+  value, and (3) shipped a <code>rndm</code> binary that prints a number to <code>stdout</code> and
+  exits <code>0</code>, the way <a href="https://clig.dev/">clig.dev</a> says a good CLI should.
+</div>
+
+<h2>1. What we're building, and why start here</h2>
+
+<p>
+  In bash, <code>echo $RANDOM</code> prints a pseudo-random integer between <code>0</code> and
+  <code>32767</code>. That's our whole spec for v0 of <code>rndm</code>: <em>print one random
+  integer in <code>[0, 32767]</code> and exit.</em> No flags, no Cobra — we add those only when a
+  real need shows up. Small on purpose: it lets us put <strong>all</strong> our attention on the
+  discipline that carries the rest of the course — <strong>test-first development</strong>.
+</p>
+
+<div class="why">
+  <span class="label">Why test-first at all</span>
+  You've written Go tests before — <em>after</em> the code. TDD flips the order: the test comes
+  first and <em>defines</em> what "done" means before any implementation exists. The payoff is that
+  every line of production code you write is there to satisfy a concrete, executable requirement —
+  and you get a regression suite for free. We'll make the rhythm explicit.
+</div>
+
+<div class="tdd">
+  <div class="step red"><div class="t">RED</div><div class="d">Write a small test. Run it. See it fail.</div></div>
+  <div class="arrow">→</div>
+  <div class="step green"><div class="t">GREEN</div><div class="d">Write the least code to pass.</div></div>
+  <div class="arrow">→</div>
+  <div class="step refactor"><div class="t">REFACTOR</div><div class="d">Tidy up, tests still green.</div></div>
+</div>
+
+<h2>2. Set up the module</h2>
+
+<p>
+  Make a directory for the project and initialise a Go module. The module path is just an identity
+  for your code — use your own GitHub path:
+</p>
+
+<pre><code>mkdir rndm &amp;&amp; cd rndm
+go mod init github.com/&lt;you&gt;/rndm</code></pre>
+
+<p>That writes a <code>go.mod</code>:</p>
+
+<pre><code>module github.com/&lt;you&gt;/rndm
+
+go 1.26.1</code></pre>
+
+<p>
+  A command-line program lives in <code>package main</code>. We'll keep two files: <code>rndm.go</code>
+  (the code) and <code>rndm_test.go</code> (the tests). Go recognises any file ending in
+  <code>_test.go</code> as tests — they compile only under <code>go test</code>, never into your binary.
+</p>
+
+<h2>3. RED — write the failing test first</h2>
+
+<p>
+  Here's the crux of testing randomness: <strong>you can't assert the output equals a specific
+  number</strong> — it's random by design. If you knew the answer, it wouldn't be random. So instead
+  you assert a <strong>property</strong> that must hold for <em>every</em> possible draw. Our
+  property: the result is always within <code>[0, 32767]</code>. We check it across many draws so a
+  stray out-of-range value can't hide.
+</p>
+
+<p>Create <code>rndm_test.go</code> — note the function <code>Number</code> doesn't exist yet. That's the point.</p>
+
+<pre><code><span class="tok-com">// rndm_test.go</span>
+<span class="tok-kw">package</span> main
+
+<span class="tok-kw">import</span> <span class="tok-str">"testing"</span>
+
+<span class="tok-kw">func</span> <span class="tok-fn">TestNumberIsInBashRandomRange</span>(t *testing.T) {
+	<span class="tok-kw">for</span> i := <span class="tok-num">0</span>; i &lt; <span class="tok-num">10000</span>; i++ {
+		n := <span class="tok-fn">Number</span>()
+		<span class="tok-kw">if</span> n &lt; <span class="tok-num">0</span> || n &gt; <span class="tok-num">32767</span> {
+			t.<span class="tok-fn">Fatalf</span>(<span class="tok-str">"Number() = %d; want a value in [0, 32767]"</span>, n)
+		}
+	}
+}</code></pre>
+
+<dl class="defrow">
+  <dt><code>TestXxx</code></dt><dd>Go only runs funcs whose name starts with <code>Test</code> and that take <code>*testing.T</code>.</dd>
+  <dt><code>t.Fatalf</code></dt><dd>Report the failure and stop the test immediately. Right choice here: once one draw is out of range, the property is broken — no need to keep looping.</dd>
+  <dt>the loop</dt><dd>10,000 draws. Property tests trade certainty for confidence — more draws, more coverage of the random space.</dd>
+</dl>
+
+<p>Now run it. It should <strong>not</strong> compile — because <code>Number</code> is undefined:</p>
+
+<pre><code>go test ./...</code></pre>
+
+<pre><code><span class="tok-com"># github.com/&lt;you&gt;/rndm [github.com/&lt;you&gt;/rndm.test]</span>
+./rndm_test.go:7:8: undefined: Number
+FAIL	github.com/&lt;you&gt;/rndm [build failed]</code></pre>
+
+<div class="note">
+  <span class="label">A build error is a valid RED</span>
+  Newcomers sometimes think "red" means a test ran and reported a wrong value. Not necessarily — a
+  <strong>compile error counts</strong>. The test names something that doesn't exist yet, so the code
+  won't build. That failing feedback is exactly what drives the next step: make it exist.
+</div>
+
+<div class="quiz">
+  <p class="q">Why does the test assert a <em>range</em> instead of comparing to an exact expected number?</p>
+  <div class="opts">
+    <button class="opt">Because comparing integers for equality is unreliable in Go programs.</button>
+    <button class="opt" data-correct>Because the value is random, so only a property can hold for every draw.</button>
+    <button class="opt">Because ranges make the test run measurably faster than equality.</button>
+  </div>
+  <div class="explain">
+    <strong>Test the property, not the value.</strong> A random function has no single correct output
+    to compare against. What you <em>can</em> pin down is an invariant true of every possible result —
+    here, that it lands in <code>[0, 32767]</code>. Later we'll see the other approach: inject a seeded
+    source so the sequence becomes fixed and exactly assertable.
+  </div>
+</div>
+
+<h2>4. GREEN — the least code that passes</h2>
+
+<p>
+  Now write just enough to satisfy the test. bash's <code>$RANDOM</code> spans <code>[0, 32767]</code>
+  — that's 32768 distinct values. Go's <a href="https://pkg.go.dev/math/rand/v2"><code>math/rand/v2</code></a>
+  gives us exactly the right tool: <code>rand.IntN(n)</code> returns an int in the half-open interval
+  <code>[0, n)</code>. So <code>rand.IntN(32768)</code> yields <code>0</code> through <code>32767</code>.
+  Create <code>rndm.go</code>:
+</p>
+
+<pre><code><span class="tok-com">// rndm.go</span>
+<span class="tok-kw">package</span> main
+
+<span class="tok-kw">import</span> <span class="tok-str">"math/rand/v2"</span>
+
+<span class="tok-com">// Number returns a pseudo-random integer in [0, 32767],</span>
+<span class="tok-com">// matching the range of bash's $RANDOM.</span>
+<span class="tok-kw">func</span> <span class="tok-fn">Number</span>() <span class="tok-kw">int</span> {
+	<span class="tok-kw">return</span> rand.<span class="tok-fn">IntN</span>(<span class="tok-num">32768</span>) <span class="tok-com">// IntN(n) yields [0, n)</span>
+}</code></pre>
+
+<p>Run the tests again:</p>
+
+<pre><code>go test ./...</code></pre>
+
+<pre><code>ok  	github.com/&lt;you&gt;/rndm	0.002s</code></pre>
+
+<p>Green. Want to watch it actually run? Use <code>-v</code>:</p>
+
+<pre><code>go test -v ./...</code></pre>
+
+<pre><code>=== RUN   TestNumberIsInBashRandomRange
+--- PASS: TestNumberIsInBashRandomRange (0.00s)
+PASS
+ok  	github.com/&lt;you&gt;/rndm	0.003s</code></pre>
+
+<div class="note">
+  <span class="label">Why <code>math/rand/v2</code>, and no seeding</span>
+  In the old <code>math/rand</code> you had to call <code>rand.Seed(...)</code> or every run produced the
+  <em>same</em> sequence. <strong>v2</strong> (Go 1.22+) fixed that: its top-level functions are
+  <strong>automatically seeded</strong> with a random value and are safe for concurrent use — so each
+  run differs with zero ceremony. One caveat worth knowing: <code>IntN(n)</code> <strong>panics if
+  <code>n ≤ 0</code></strong>. Not a concern with our constant <code>32768</code>, but remember it for
+  when the bound becomes a user-supplied flag.
+</div>
+
+<h2>5. Make it a program — <code>main()</code> and stdout</h2>
+
+<p>
+  The test drove <code>Number()</code>, the logic. But a CLI has to actually <em>print</em> something.
+  Add a <code>main</code> that writes the number to standard output. This is where
+  <a href="https://clig.dev/">clig.dev</a> earns its place: <em>"Send output to <code>stdout</code>"</em>,
+  and <em>"Return zero exit code on success."</em> A Go program that returns from <code>main</code>
+  normally exits <code>0</code> automatically.
+</p>
+
+<pre><code><span class="tok-com">// rndm.go</span>
+<span class="tok-kw">package</span> main
+
+<span class="tok-kw">import</span> (
+	<span class="tok-str">"fmt"</span>
+	<span class="tok-str">"math/rand/v2"</span>
+	<span class="tok-str">"os"</span>
+)
+
+<span class="tok-com">// Number returns a pseudo-random integer in [0, 32767],</span>
+<span class="tok-com">// matching the range of bash's $RANDOM.</span>
+<span class="tok-kw">func</span> <span class="tok-fn">Number</span>() <span class="tok-kw">int</span> {
+	<span class="tok-kw">return</span> rand.<span class="tok-fn">IntN</span>(<span class="tok-num">32768</span>)
+}
+
+<span class="tok-kw">func</span> <span class="tok-fn">main</span>() {
+	fmt.<span class="tok-fn">Fprintln</span>(os.Stdout, <span class="tok-fn">Number</span>())
+}</code></pre>
+
+<div class="why">
+  <span class="label">Why <code>Fprintln(os.Stdout, …)</code> and not just <code>Println</code>?</span>
+  <code>fmt.Println</code> is a shortcut that always writes to <code>os.Stdout</code>. Writing
+  <code>os.Stdout</code> <em>explicitly</em> names the stream we mean — output goes to stdout, and if we
+  ever needed diagnostics they'd go to <code>os.Stderr</code>. It also foreshadows Lesson 2: the moment
+  that destination becomes a parameter (<code>io.Writer</code>), we can capture it in a test. Keeping
+  <code>main()</code> this thin — parse nothing, compute in <code>Number()</code>, print — is what keeps
+  the logic testable.
+</div>
+
+<p>Build the binary and run it a few times — a different number each run:</p>
+
+<pre><code>go build -o rndm .
+./rndm
+./rndm
+./rndm</code></pre>
+
+<pre><code>26068
+31348
+8272</code></pre>
+
+<p>Confirm it behaves as a good CLI citizen — clean on a pipe, and exit code <code>0</code>:</p>
+
+<pre><code>./rndm | cat        <span class="tok-com"># just the number, nothing else on stdout</span>
+./rndm &gt; /dev/null; echo "exit=$?"</code></pre>
+
+<pre><code>6765
+exit=0</code></pre>
+
+<div class="quiz">
+  <p class="q">Per clig.dev, where should <code>rndm</code>'s random number go, and what exit code signals success?</p>
+  <div class="opts">
+    <button class="opt">To stderr, with exit code 1, so scripts can capture it as a log line.</button>
+    <button class="opt" data-correct>To stdout, with exit code 0, so it pipes cleanly and scripts see success.</button>
+    <button class="opt">To stdout, with exit code 1, because output was produced by the program.</button>
+  </div>
+  <div class="explain">
+    <strong>Result on stdout, success is 0.</strong> stdout carries the actual output so it can become
+    another program's input; stderr is for messages and errors; a zero exit code tells a calling script
+    the run succeeded. That trio is the baseline contract of a well-behaved CLI.
+  </div>
+</div>
+
+<h2>6. REFACTOR — and keep the tests honest</h2>
+
+<p>
+  With both tests green, this is the safe moment to improve the code. There's little to tidy in
+  something this small — but the refactor step is also where you run the housekeeping tools and trust
+  the suite to catch any regression:
+</p>
+
+<pre><code>go vet ./...     <span class="tok-com"># static checks — should print nothing</span>
+gofmt -l .       <span class="tok-com"># lists unformatted files — empty means all good</span>
+go test ./...    <span class="tok-com"># still green?</span></code></pre>
+
+<p>
+  That's one complete turn of the cycle: <strong>red</strong> (a failing test named the behaviour) →
+  <strong>green</strong> (least code to satisfy it) → <strong>refactor</strong> (tidy with a safety net).
+  Every feature you add to <code>rndm</code> from here follows the same loop.
+</p>
+
+<div class="takeaways">
+  <span class="label">Main takeaways</span>
+  <ul>
+    <li><strong>Test-first:</strong> write a failing test that defines "done", then write code to pass it. A <em>compile error</em> is a legitimate red.</li>
+    <li><strong>Testing randomness:</strong> you can't assert an exact value — assert a <strong>property</strong> (here, the result is always in <code>[0, 32767]</code>) across many draws.</li>
+    <li><code>rand.IntN(n)</code> from <code>math/rand/v2</code> returns <code>[0, n)</code>; it <strong>panics if n ≤ 0</strong>. v2 is auto-seeded — no <code>rand.Seed</code> needed.</li>
+    <li><strong>Thin <code>main()</code>:</strong> keep logic in a testable function (<code>Number()</code>); let <code>main</code> just wire input → compute → output.</li>
+    <li><strong>clig.dev contract:</strong> result to <code>stdout</code>, messages to <code>stderr</code>, exit <code>0</code> on success — so the tool pipes and scripts cleanly.</li>
+    <li>The loop that carries the whole course: <strong>red → green → refactor</strong>.</li>
+  </ul>
+</div>
+
+<div class="source">
+  <span class="label">Primary source — read this next</span>
+  <a href="https://quii.gitbook.io/learn-go-with-tests/go-fundamentals/hello-world">Learn Go with Tests — “Hello, world”</a>
+  (Chris James). The clearest walkthrough of the red-green-refactor rhythm in Go, from the book this
+  course leans on. Then skim <a href="https://clig.dev/#foundations">clig.dev — Foundations</a> for the
+  stdout/stderr/exit-code contract.
+</div>
+
+<div class="ask">
+  <strong>Stuck or curious?</strong> I'm your teacher for this course — ask me anything: why a compile
+  error counts as red, when <code>t.Fatalf</code> beats <code>t.Errorf</code>, why <code>math/rand</code>
+  has a <code>v2</code>, what happens the day <code>32768</code> becomes a <code>--max</code> flag, or how
+  we'd test the <em>printed output</em> and not just <code>Number()</code> (that's Lesson 2). Just ask in the chat.
+</div>
+
+<div class="lesson-nav">
+  <span><a href="../reference/go-tdd-toolbox.html">→ Reference: Go TDD &amp; CLI toolbox</a></span>
+  <span><a href="index.html">Course index</a></span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+<script src="../assets/copy-code.js"></script>

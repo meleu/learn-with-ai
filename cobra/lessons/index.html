@@ -1,0 +1,58 @@
+<meta charset="utf-8">
+<title>Go CLIs Course — Index</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+
+<p class="kicker">Go CLIs Course</p>
+<h1>Building CLI tools in Go, test-first</h1>
+<p class="subtitle">Small, hands-on projects that grow from the standard library up to Cobra — every feature driven by a failing test, every UX call grounded in <a href="https://clig.dev/">clig.dev</a>. Current project: <code>rndm</code>.</p>
+
+<div class="tip">
+  <span class="label">The mission</span>
+  Ship real command-line tools your coworkers install and run — robust Go binaries, not fragile
+  shell scripts — while deepening genuine fluency with Go's standard library. TDD is the working
+  discipline throughout.
+</div>
+
+<h2>Lessons</h2>
+<ul class="course-list">
+  <li>
+    <span class="n">Lesson 1 · rndm</span>
+    <a class="ti" href="0001-test-drive-rndm.html">Test-drive <code>rndm</code>: red → green → refactor</a>
+    <span class="de">Drive a function from a failing test. Test randomness by asserting a property, not a value. Ship a binary that prints to stdout and exits 0.</span>
+  </li>
+  <li class="todo">
+    <span class="n">Lesson 2 · rndm</span>
+    <span class="ti">Testing the program's output (the <code>io.Writer</code> seam)</span>
+    <span class="de">Extract <code>run(w io.Writer)</code> so stdout is capturable in a test with <code>bytes.Buffer</code> — the classic move that makes a whole CLI testable. <em>(coming next)</em></span>
+  </li>
+  <li class="todo">
+    <span class="n">Lesson 3 · rndm</span>
+    <span class="ti">Reproducible randomness: injecting the source</span>
+    <span class="de">Pass a seeded <code>*rand.Rand</code> so a test can assert an exact sequence — dependency injection / seams. <em>(planned)</em></span>
+  </li>
+  <li class="todo">
+    <span class="n">Lesson 4 · rndm</span>
+    <span class="ti">Your first flag with stdlib <code>flag</code></span>
+    <span class="de">Add <code>--max</code> / <code>-n</code> with the standard library — usage on stderr, exit codes — before reaching for Cobra. <em>(planned)</em></span>
+  </li>
+  <li class="todo">
+    <span class="n">Lesson 5+ · Cobra</span>
+    <span class="ti">When flags outgrow <code>flag</code>: enter Cobra</span>
+    <span class="de">Introduce Cobra once the tool genuinely needs subcommands/flags, and migrate <code>rndm</code> gain-by-gain. <em>(planned)</em></span>
+  </li>
+</ul>
+
+<h2>Reference</h2>
+<ul class="course-list">
+  <li>
+    <span class="n">Reference card</span>
+    <a class="ti" href="../reference/go-tdd-toolbox.html">Go TDD &amp; CLI Toolbox</a>
+    <span class="de">The red-green-refactor loop, test commands, table tests, <code>math/rand/v2</code>, and the clig.dev rules — one printable page.</span>
+  </li>
+</ul>
+
+<div class="ask">
+  <strong>I'm your teacher for this course.</strong> Ask me to explain anything, go deeper on a
+  concept, or start the next lesson whenever you're ready.
+</div>
