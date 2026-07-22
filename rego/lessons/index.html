@@ -25,18 +25,26 @@
     — <code>contains</code> rules that collect many findings; the shape conftest's <code>deny</code> is built from.
   </li>
   <li>
-    <a href="0003-iterating-over-config.html">Iterating Over Config</a>
-    — <code>some&nbsp;…&nbsp;in</code> and <code>every</code> over lists; detailed messages with <code>sprintf</code>.
+    <a href="0003-conftest-your-first-gate.html">Conftest: Your First Real Gate</a>
+    — a working policy on a real Deployment using only Lesson&nbsp;2's rule; <code>deny</code>/<code>warn</code> and the exit code that gates the build.
   </li>
   <li>
-    <a href="0004-comprehensions.html">Comprehensions</a>
-    — collect values, not just verdicts: set / array / object <code>{v&nbsp;|&nbsp;…}</code>, and using them inside a rule.
+    <a href="0004-iterating-over-config.html">Iterating Over Config</a>
+    — <code>some&nbsp;…&nbsp;in</code> and <code>every</code> over a list of containers; detailed messages with <code>sprintf</code>.
   </li>
   <li>
-    <a href="0005-conftest-just-opa-underneath.html">Conftest: just OPA underneath</a>
-    — run your Rego on a real config file; <code>deny</code>/<code>warn</code>/<code>violation</code> and the exit code that gates the build.
+    <a href="0005-comprehensions.html">Comprehensions</a>
+    — collect values, not just verdicts: set / array / object <code>{v&nbsp;|&nbsp;…}</code>, and using them inside a <code>deny</code>.
   </li>
 </ol>
+
+<div class="note">
+  <span class="label">How the course is sequenced</span>
+  Lessons&nbsp;1–2 teach the language with the plain <code>opa</code> CLI, so nothing about Rego is
+  hidden behind a tool. From Lesson&nbsp;3 on, everything runs through <strong>conftest</strong> —
+  the tool you'll actually put in a pipeline — with the framing that it is
+  <em>just OPA underneath</em>.
+</div>
 
 <h2>Reference</h2>
 <ul>

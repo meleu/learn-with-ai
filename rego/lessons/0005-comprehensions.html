@@ -1,9 +1,9 @@
 <meta charset="utf-8">
-<title>Lesson 4 — Comprehensions</title>
+<title>Lesson 5 — Comprehensions</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="../assets/style.css">
 
-<p class="kicker"><a href="index.html">Rego Course</a> &nbsp;·&nbsp; Lesson 4</p>
+<p class="kicker"><a href="index.html">Rego Course</a> &nbsp;·&nbsp; Lesson 5</p>
 <h1>Comprehensions</h1>
 <p class="subtitle">Iteration that hands you back <em>data</em>. Collect the values themselves — a set of names, a lookup map — not just a yes/no.</p>
 
@@ -12,14 +12,14 @@
   By the end you can (1) read and write the three comprehension forms —
   <strong>set</strong> <code>{v | …}</code>, <strong>array</strong> <code>[v | …]</code>, and
   <strong>object</strong> <code>{k: v | …}</code> — (2) know when order and duplicates matter
-  (array vs set), and (3) use a comprehension <strong>inside a rule</strong> to compute with the
-  values you collected.
+  (array vs set), and (3) use a comprehension <strong>inside a <code>deny</code> rule</strong> to
+  compute with the values you collected.
 </div>
 
 <h2>1. From verdicts to values</h2>
 
 <p>
-  In <a href="0003-iterating-over-config.html">Lesson&nbsp;3</a> iteration produced two things:
+  In <a href="0004-iterating-over-config.html">Lesson&nbsp;4</a> iteration produced two things:
   <code>some</code>&nbsp;+&nbsp;<code>contains</code> gave a set of <strong>findings</strong>
   (strings), and <code>every</code> gave a single <strong>verdict</strong> (a boolean). Both throw
   away the values along the way — you learn <em>that</em> something is wrong, or <em>how many</em>,
@@ -36,7 +36,7 @@
 
 <div class="flow">
   <div class="box">
-    <div class="t"><code>some c in xs</code></div>
+    <div class="t"><code>some c in containers</code></div>
     <div class="d">iterate the elements</div>
   </div>
   <div class="arrow">→</div>
@@ -51,47 +51,58 @@
   </div>
 </div>
 
-<h2>2. The set comprehension — <code>{ value | body }</code></h2>
+<h2>2. Seeing a helper's value with conftest</h2>
+
+<p>
+  One practical problem first. Comprehensions live in <strong>helper</strong> rules
+  (<a href="0004-iterating-over-config.html">Lesson&nbsp;4</a>), and conftest only prints
+  <code>deny</code>/<code>warn</code>/<code>violation</code> — so how do you look at what you just
+  built? Add a throwaway <code>warn</code> that prints it. It's the policy-author's
+  <code>printf</code>, and <code>warn</code> keeps your exit code at <code>0</code> while you work:
+</p>
+
+<pre><code><span class="tok-com"># temporary — delete before you commit</span>
+warn <span class="tok-kw">contains</span> sprintf(<span class="tok-str">"DEBUG privileged_names = %v"</span>, [privileged_names])</code></pre>
+
+<p>
+  A <code>contains</code> rule with no <code>if</code> has no condition to satisfy, so it always
+  contributes. Keep this trick in your pocket — the rest of the lesson uses it to show you what
+  each comprehension actually produces.
+</p>
+
+<h2>3. The set comprehension — <code>{ value | body }</code></h2>
 
 <p>
   Read <code>{ value | body }</code> aloud as <em>"the set of <code>value</code>, for every binding
   where <code>body</code> holds."</em> The bar <code>|</code> separates <em>what to collect</em> (on
   the left) from <em>which bindings qualify</em> (the body on the right — the very same kind of
-  <code>some</code> + conditions body from Lesson&nbsp;3). This one collects the name of every
+  <code>some</code> + conditions body from Lesson&nbsp;4). This one collects the name of every
   privileged container:
 </p>
 
-<pre><code><span class="tok-kw">package</span> manifest
+<pre><code><span class="tok-kw">package</span> main
+
+containers := input.spec.template.spec.containers
 
 <span class="tok-com"># the SET of c.name, for every container that runs privileged</span>
 privileged_names := {c.name |
-	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers
 	c.securityContext.privileged == <span class="tok-kw">true</span>
 }</code></pre>
 
 <p>
   This is a <strong>complete rule</strong> (Lesson&nbsp;1) whose value happens to be a set — not a
-  <code>contains</code> partial rule. Feed it a manifest where two of three containers are
-  privileged:
+  <code>contains</code> partial rule. Run it on a Deployment where two of three containers are
+  privileged, with the debug <code>warn</code> attached:
 </p>
 
-<pre><code><span class="tok-com"># input.json</span>
-{
-  <span class="tok-str">"containers"</span>: [
-    { <span class="tok-str">"name"</span>: <span class="tok-str">"api"</span>,   <span class="tok-str">"image"</span>: <span class="tok-str">"corp/api:1.4.2"</span>, <span class="tok-str">"securityContext"</span>: { <span class="tok-str">"privileged"</span>: <span class="tok-kw">true</span> } },
-    { <span class="tok-str">"name"</span>: <span class="tok-str">"cache"</span>, <span class="tok-str">"image"</span>: <span class="tok-str">"redis:latest"</span> },
-    { <span class="tok-str">"name"</span>: <span class="tok-str">"web"</span>,   <span class="tok-str">"image"</span>: <span class="tok-str">"nginx:latest"</span>,  <span class="tok-str">"securityContext"</span>: { <span class="tok-str">"privileged"</span>: <span class="tok-kw">true</span> } }
-  ]
-}</code></pre>
+<pre><code>WARN - deployment.yaml - main - DEBUG privileged_names = {<span class="tok-str">"api"</span>, <span class="tok-str">"web"</span>}</code></pre>
 
-<pre><code>opa eval -d manifest.rego -i input.json <span class="tok-str">'data.manifest.privileged_names'</span> --format pretty</code></pre>
-
-<p>A set prints as a JSON array (sets have no duplicates and no order):</p>
-
-<pre><code>[
-  <span class="tok-str">"api"</span>,
-  <span class="tok-str">"web"</span>
-]</code></pre>
+<p>
+  Note the braces in the output: <code>%v</code> prints a set as <code>{…}</code> and an array as
+  <code>[…]</code>, so the debug line tells you which kind of collection you built. Sets have no
+  duplicates and no order.
+</p>
 
 <div class="defrow">
   <dt>left of <code>|</code></dt>
@@ -109,7 +120,7 @@ privileged_names := {c.name |
   It would rather you wrote the equivalent <em>partial</em> rule — the <code>contains</code> shape
   from <a href="0002-partial-rules-sets-of-findings.html">Lesson&nbsp;2</a>:
   <pre style="margin:0.6rem 0 0"><code>privileged_names <span class="tok-kw">contains</span> c.name <span class="tok-kw">if</span> {
-	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers
 	c.securityContext.privileged == <span class="tok-kw">true</span>
 }</code></pre>
   Both compute the same set. We assign the comprehension to a rule here <strong>on purpose</strong>,
@@ -117,7 +128,7 @@ privileged_names := {c.name |
   the partial rule.
 </div>
 
-<h2>3. Array vs set — when order and duplicates matter</h2>
+<h2>4. Array vs set — when order and duplicates matter</h2>
 
 <p>
   Swap the braces for <strong>square brackets</strong> and you get an <strong>array</strong>
@@ -125,33 +136,43 @@ privileged_names := {c.name |
 </p>
 
 <pre><code><span class="tok-com"># every image, in list order, duplicates kept</span>
-all_images := [c.image | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers]
+all_images := [c.image | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers]
 
 <span class="tok-com"># the distinct images, deduped, unordered</span>
-distinct_images := {c.image | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers}</code></pre>
+distinct_images := {c.image | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers}</code></pre>
+
+<p>The debug lines make the difference visible at a glance:</p>
+
+<pre><code>WARN - … - DEBUG all_images = [<span class="tok-str">"corp/api:1.4.2"</span>, <span class="tok-str">"redis:latest"</span>, <span class="tok-str">"nginx:latest"</span>]
+WARN - … - DEBUG distinct_images = {<span class="tok-str">"corp/api:1.4.2"</span>, <span class="tok-str">"nginx:latest"</span>, <span class="tok-str">"redis:latest"</span>}</code></pre>
 
 <p>
-  That difference is a tool, not a nuisance. Comparing the two counts is the idiomatic way to ask
-  <em>"are these values all distinct?"</em> — because the array keeps duplicates and the set
-  collapses them:
+  The array keeps the manifest's order; the set is sorted and deduped. That difference is a tool,
+  not a nuisance. Comparing the two <em>counts</em> is the idiomatic way to ask <em>"are these
+  values all distinct?"</em> — a real check, since duplicate container names are invalid:
 </p>
 
-<pre><code><span class="tok-kw">default</span> names_unique := <span class="tok-kw">false</span>
-names_unique <span class="tok-kw">if</span> {
-	all_names := [c.name | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers]        <span class="tok-com"># keeps dups</span>
-	distinct_names := {c.name | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers}   <span class="tok-com"># drops dups</span>
-	count(all_names) == count(distinct_names)                <span class="tok-com"># equal ⇒ no duplicate names</span>
+<pre><code>deny <span class="tok-kw">contains</span> <span class="tok-str">"container names must be unique"</span> <span class="tok-kw">if</span> {
+	all_names := [c.name | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers]        <span class="tok-com"># keeps dups</span>
+	distinct_names := {c.name | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers}   <span class="tok-com"># drops dups</span>
+	count(all_names) != count(distinct_names)             <span class="tok-com"># differ ⇒ a duplicate</span>
 }</code></pre>
 
 <p>
-  Three containers named <code>web</code>, <code>web</code>, <code>db</code> give
-  <code>count(all_names)&nbsp;==&nbsp;3</code> but <code>count(distinct_names)&nbsp;==&nbsp;2</code>, so
-  <code>names_unique</code> is <code>false</code>. Rename one and the counts match. Pick the array
-  when order or repetition carries meaning; pick the set when you want a clean membership list.
+  Containers named <code>web</code>, <code>web</code>, <code>db</code> give
+  <code>count(all_names)&nbsp;==&nbsp;3</code> but <code>count(distinct_names)&nbsp;==&nbsp;2</code>,
+  so the rule fires:
+</p>
+
+<pre><code>FAIL - dup.yaml - main - container names must be unique</code></pre>
+
+<p>
+  Pick the array when order or repetition carries meaning; pick the set when you want a clean
+  membership list.
 </p>
 
 <div class="quiz">
-  <p class="q">A manifest has containers named <code>web</code>, <code>web</code>, <code>db</code>. What is <code>count([c.name | some c in input.containers])</code>?</p>
+  <p class="q">A manifest has containers named <code>web</code>, <code>web</code>, <code>db</code>. What is <code>count([c.name | some c in containers])</code>?</p>
   <div class="opts">
     <button class="opt">It is two, matching distinct names.</button>
     <button class="opt" data-correct>It is three, one per list element.</button>
@@ -164,7 +185,7 @@ names_unique <span class="tok-kw">if</span> {
   </div>
 </div>
 
-<h2>4. The object comprehension — <code>{ key: value | body }</code></h2>
+<h2>5. The object comprehension — <code>{ key: value | body }</code></h2>
 
 <p>
   Put a <strong>colon</strong> in the head — <code>key: value</code> — and the braces build an
@@ -173,66 +194,70 @@ names_unique <span class="tok-kw">if</span> {
 </p>
 
 <pre><code><span class="tok-com"># a lookup: container name → its image</span>
-image_by_name := {c.name: c.image | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers}</code></pre>
+image_by_name := {c.name: c.image | <span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers}</code></pre>
 
-<pre><code>opa eval -d manifest.rego -i input.json <span class="tok-str">'data.manifest.image_by_name'</span> --format pretty</code></pre>
-
-<p>An object prints as JSON (keys sorted):</p>
-
-<pre><code>{
-  <span class="tok-str">"api"</span>: <span class="tok-str">"corp/api:1.4.2"</span>,
-  <span class="tok-str">"cache"</span>: <span class="tok-str">"redis:latest"</span>,
-  <span class="tok-str">"web"</span>: <span class="tok-str">"nginx:latest"</span>
-}</code></pre>
+<pre><code>WARN - … - DEBUG image_by_name = {<span class="tok-str">"api"</span>: <span class="tok-str">"corp/api:1.4.2"</span>, <span class="tok-str">"cache"</span>: <span class="tok-str">"redis:latest"</span>, <span class="tok-str">"web"</span>: <span class="tok-str">"nginx:latest"</span>}</code></pre>
 
 <p>
   Now <code>image_by_name["web"]</code> reads the image directly, no re-iteration. One caution: the
   <strong>keys must be unique</strong>. If two bindings produce the same key with
   <em>different</em> values, OPA raises a conflict error rather than silently picking one — which is
-  usually a signal your key isn't as unique as you assumed.
+  usually a signal your key isn't as unique as you assumed. (Which is exactly what the duplicate-name
+  check in §4 is guarding against.)
 </p>
 
 <div class="why">
   <span class="label">Gotcha — the linter again</span>
-  Just like the set example in §2, assigning an object comprehension to a complete rule trips
+  Just like the set example in §3, assigning an object comprehension to a complete rule trips
   Regal's <a href="https://www.openpolicyagent.org/projects/regal/rules/idiomatic/prefer-set-or-object-rule"><code>prefer-set-or-object-rule</code></a>.
   The idiomatic form is a partial <em>object</em> rule:
   <pre style="margin:0.6rem 0 0"><code>image_by_name[c.name] := c.image <span class="tok-kw">if</span> {
-	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers
 }</code></pre>
   Same map, idiomatic shape. We keep the comprehension here to show the
   <code>{ key: value | body }</code> syntax.
 </div>
 
-<h2>5. Comprehensions earn their keep <em>inside</em> a rule</h2>
+<h2>6. Comprehensions earn their keep <em>inside</em> a rule</h2>
 
 <p>
-  The real payoff is using a comprehension as a step in a rule body: collect the values, then decide
-  or report with them. Here, instead of one finding <em>per</em> privileged container (Lesson&nbsp;3),
-  we collect the names first and emit a <strong>single, tidy finding</strong> that lists them all:
+  The real payoff is using a comprehension as a step in a <code>deny</code> body: collect the values,
+  then report with them. Here, instead of one FAIL line <em>per</em> privileged container
+  (Lesson&nbsp;4), we collect the names first and emit a <strong>single, tidy finding</strong> that
+  lists them all:
 </p>
 
-<pre><code>violations <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+<pre><code>deny <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
 	names := {c.name |                          <span class="tok-com"># collect, as a step in the body</span>
-		<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers
+		<span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers
 		c.securityContext.privileged == <span class="tok-kw">true</span>
 	}
 	count(names) &gt; 0                           <span class="tok-com"># only report if there are any</span>
 	msg := sprintf(<span class="tok-str">"privileged containers: %s"</span>, [concat(<span class="tok-str">", "</span>, names)])
-}
-<span class="tok-com"># → "privileged containers: api, web"</span></code></pre>
+}</code></pre>
+
+<pre><code>FAIL - deployment.yaml - main - privileged containers: api, web</code></pre>
 
 <p>
   <code>concat(sep, coll)</code> joins a set or array of strings with a separator (sorted, for a
   set). Note the <code>count(names)&nbsp;&gt;&nbsp;0</code> guard: a comprehension <strong>never goes
   undefined</strong> — with no matching bindings it simply yields an <em>empty</em> collection. So
   <code>names</code> would be the empty set, <code>concat</code> would give <code>""</code>, and
-  without the guard you'd emit a hollow "privileged containers: " finding. Collecting always
-  succeeds; deciding whether an empty result is worth reporting is still your call.
+  without the guard every clean manifest would FAIL with a hollow
+  <code>"privileged containers: "</code>. Collecting always succeeds; deciding whether an empty
+  result is worth reporting is still your call.
 </p>
 
+<div class="note">
+  <span class="label">One finding or many?</span>
+  Both shapes are legitimate — it's a readability decision. One finding per container
+  (Lesson&nbsp;4) is easier to grep and to fix one at a time; one rolled-up finding is kinder to a
+  build log when a manifest has twenty containers. Pick per check, and be consistent across the
+  policies your coworkers read.
+</div>
+
 <div class="quiz">
-  <p class="q">No container is privileged. What does the comprehension <code>{c.name | some c in input.containers; c.securityContext.privileged == true}</code> evaluate to?</p>
+  <p class="q">No container is privileged. What does the comprehension <code>{c.name | some c in containers; c.securityContext.privileged == true}</code> evaluate to?</p>
   <div class="opts">
     <button class="opt">It becomes undefined, no bindings matched.</button>
     <button class="opt" data-correct>It becomes the empty set, nothing collected.</button>
@@ -260,8 +285,9 @@ image_by_name := {c.name: c.image | <span class="tok-kw">some</span> c <span cla
     <li>Read <code>{ value | body }</code> as "the collection of <code>value</code> for every binding where <code>body</code> holds"; the body is a normal <code>some</code>&nbsp;+&nbsp;conditions body.</li>
     <li><strong>Set</strong> <code>{v | …}</code> dedupes and is unordered; <strong>array</strong> <code>[v | …]</code> keeps order and duplicates — compare their counts to test for duplicates.</li>
     <li><strong>Object</strong> <code>{k: v | …}</code> builds a lookup map; keys must be unique or OPA raises a conflict.</li>
-    <li>A comprehension is a natural <strong>step inside a rule body</strong> — collect, then decide or <code>sprintf</code> with the result.</li>
+    <li>A comprehension is a natural <strong>step inside a <code>deny</code> body</strong> — collect, then <code>sprintf</code> one rolled-up finding.</li>
     <li>A comprehension <strong>never goes undefined</strong>: no matches ⇒ an <em>empty</em> collection, so guard with <code>count(…) &gt; 0</code> when empty shouldn't report.</li>
+    <li>To inspect a helper rule under conftest, add a throwaway <code>warn contains sprintf("DEBUG … %v", [x])</code> — no <code>if</code> needed, and warnings don't fail the build.</li>
   </ul>
 </div>
 
@@ -273,7 +299,7 @@ image_by_name := {c.name: c.image | <span class="tok-kw">some</span> c <span cla
 </div>
 
 <div class="lesson-nav">
-  <span><a href="0003-iterating-over-config.html">← Lesson 3</a></span>
+  <span><a href="0004-iterating-over-config.html">← Lesson 4</a></span>
   <span><a href="../reference/iteration-and-strings.html">→ Reference: Iteration &amp; Strings</a></span>
   <span><a href="index.html">Course index</a></span>
 </div>

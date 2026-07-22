@@ -95,7 +95,10 @@ deny <span class="tok-kw">if</span> count(violations) &gt; 0</code></pre>
   Conftest scans <code>package main</code> for partial set rules named <code>deny</code>,
   <code>warn</code>, or <code>violation</code>. It collects each set, prints the messages, and
   fails when <code>deny</code> is non-empty. Everything on this card stays true there —
-  conftest is just OPA collecting a set for you.
+  conftest is just OPA collecting a set for you. Rename <code>violations</code> to
+  <code>deny</code> and the card's example is a working policy:
+  <a href="../lessons/0003-conftest-your-first-gate.html">Lesson&nbsp;3</a> runs exactly that on a
+  real Deployment.
 </div>
 
 <div class="source">

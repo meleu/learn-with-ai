@@ -1,0 +1,366 @@
+<meta charset="utf-8">
+<title>Lesson 3 — Conftest: Your First Real Gate</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+
+<p class="kicker"><a href="index.html">Rego Course</a> &nbsp;·&nbsp; Lesson 3</p>
+<h1>Conftest: Your First Real Gate</h1>
+<p class="subtitle">The exact partial rule from Lesson&nbsp;2, pointed at a real Deployment — and an exit code that fails the build.</p>
+
+<div class="tip">
+  <span class="label">Your win for this lesson</span>
+  By the end you can (1) write a working <code>conftest</code> policy using <strong>nothing but
+  Lesson&nbsp;2's partial rule</strong>, (2) run it on a real YAML file and read the FAIL lines and
+  the <strong>exit code</strong>, and (3) spot a check that can silently <em>never fire</em>.
+</div>
+
+<h2>1. A decision isn't yet enforcement</h2>
+
+<p>
+  <a href="0002-partial-rules-sets-of-findings.html">Lesson&nbsp;2</a> ended one step short. You
+  collected findings into a set, folded them into a verdict with
+  <code>deny if count(violations) &gt; 0</code> — and then that verdict just sat there, printed in
+  your terminal by <code>opa eval</code>. Nothing was <em>gated</em>. Nothing failed.
+</p>
+
+<p>
+  <strong>Conftest</strong> is the missing half. It's the tool from your
+  <a href="../MISSION.md">mission</a> — the thing that actually runs in your pipelines. And it
+  changes only <strong>two</strong> things about what you already do. No new Rego at all.
+</p>
+
+<div class="flow">
+  <div class="box">
+    <div class="t">a config file</div>
+    <div class="d"><code>deployment.yaml</code></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="box policy">
+    <div class="t">conftest</div>
+    <div class="d">parse&nbsp;→&nbsp;<code>input</code>, run <code>data.main.deny</code></div>
+  </div>
+  <div class="arrow">→</div>
+  <div class="box">
+    <div class="t">PASS / FAIL</div>
+    <div class="d">+ an exit code CI reads</div>
+  </div>
+</div>
+
+<div class="defrow">
+  <dt>Change 1</dt>
+  <dd><code>input</code> is <strong>your config file, parsed for you</strong> — no more hand-written
+  <code>input.json</code>, no <code>-i</code> flag. YAML, JSON, Dockerfile, HCL, TOML and more,
+  picked by file type. <a href="https://www.conftest.dev/">(conftest.dev)</a></dd>
+  <dt>Change 2</dt>
+  <dd>Rule <strong>names are a convention</strong>. Conftest collects the rules called
+  <code>deny</code>, <code>warn</code>, and <code>violation</code> from package
+  <code>main</code>. That's the whole API. The rule bodies stay the Rego you already write.</dd>
+</div>
+
+<h2>2. <code>deny</code> is your Lesson 2 rule, renamed</h2>
+
+<p>
+  Here is a real policy for a Kubernetes Deployment — three checks a platform team genuinely
+  enforces. Read it before reading the explanation, and notice that you already know every line:
+</p>
+
+<pre><code><span class="tok-com"># policy/deployment.rego</span>
+<span class="tok-kw">package</span> main
+
+deny <span class="tok-kw">contains</span> <span class="tok-str">"Deployment must not run in the default namespace"</span> <span class="tok-kw">if</span> input.metadata.namespace == <span class="tok-str">"default"</span>
+
+deny <span class="tok-kw">contains</span> <span class="tok-str">"Deployment must have at least 2 replicas"</span> <span class="tok-kw">if</span> input.spec.replicas &lt; 2
+
+deny <span class="tok-kw">contains</span> <span class="tok-str">"Deployment is missing the owner label"</span> <span class="tok-kw">if</span> <span class="tok-kw">not</span> input.metadata.labels.owner</code></pre>
+
+<p>
+  That is the Lesson&nbsp;2 signup validator with the strings swapped. Same three shapes, same
+  union, same "no findings means <code>[]</code>". Line for line:
+</p>
+
+<table>
+  <thead>
+    <tr><th>Lesson 2 (<code>violations</code>)</th><th>This policy (<code>deny</code>)</th><th>The shape</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>input.age &lt; 18</code></td><td><code>input.spec.replicas &lt; 2</code></td><td>comparison</td></tr>
+    <tr><td><code>not input.username</code></td><td><code>not input.metadata.labels.owner</code></td><td>presence check</td></tr>
+    <tr><td><code>input.username == ""</code></td><td><code>input.metadata.namespace == "default"</code></td><td>equality</td></tr>
+    <tr><td>3 defs → one set</td><td>3 defs → one set</td><td>union</td></tr>
+  </tbody>
+</table>
+
+<p>
+  Only two things are conftest's ask: the package must be <code>main</code>, and the rule must be
+  called <code>deny</code>. Everything else is the partial set rule you already write.
+</p>
+
+<div class="note">
+  <span class="label">Why <code>input.metadata.namespace</code> and not <code>input.namespace</code>?</span>
+  Conftest hands you the <strong>whole parsed file</strong> as <code>input</code>, so your paths
+  follow the file's real shape. A Deployment nests its namespace under <code>metadata</code>, so
+  that's the path. Same mental model as <a href="0001-the-rego-mental-model.html">Lesson&nbsp;1</a>:
+  <code>input</code> is just a document, and you reach into it exactly as it's written.
+</div>
+
+<h2>3. Run it on a real file</h2>
+
+<p>
+  Conftest reads policies from a <code>policy/</code> directory by default. Put the rules there and
+  drop a manifest beside it:
+</p>
+
+<pre><code>.
+├── deployment.yaml     <span class="tok-com"># the config to check — becomes `input`</span>
+└── policy/
+    └── deployment.rego <span class="tok-com"># package main</span></code></pre>
+
+<pre><code><span class="tok-com"># deployment.yaml</span>
+<span class="tok-kw">apiVersion</span>: apps/v1
+<span class="tok-kw">kind</span>: Deployment
+<span class="tok-kw">metadata</span>:
+  <span class="tok-kw">name</span>: billing
+  <span class="tok-kw">namespace</span>: default
+  <span class="tok-kw">labels</span>:
+    <span class="tok-kw">team</span>: payments
+<span class="tok-kw">spec</span>:
+  <span class="tok-kw">replicas</span>: 1
+  <span class="tok-kw">template</span>:
+    <span class="tok-kw">spec</span>:
+      <span class="tok-kw">containers</span>:
+        - <span class="tok-kw">name</span>: api
+          <span class="tok-kw">image</span>: corp/api:1.4.2</code></pre>
+
+<pre><code>conftest test deployment.yaml</code></pre>
+
+<p>All three checks trip — one FAIL line per element of your <code>deny</code> set:</p>
+
+<pre><code>FAIL - deployment.yaml - main - Deployment is missing the owner label
+FAIL - deployment.yaml - main - Deployment must have at least 2 replicas
+FAIL - deployment.yaml - main - Deployment must not run in the default namespace
+
+3 tests, 0 passed, 0 warnings, 3 failures, 0 exceptions</code></pre>
+
+<p>And now the piece that makes it a <em>gate</em>:</p>
+
+<pre><code>echo $?     <span class="tok-com"># → 1   (any deny finding ⇒ non-zero exit)</span></code></pre>
+
+<p>
+  Fix the manifest — <code>namespace: payments</code>, <code>replicas: 3</code>, an
+  <code>owner</code> label — and the same command reports
+  <code>3 tests, 3 passed, 0 failures</code> and exits <code>0</code>.
+</p>
+
+<div class="why">
+  <span class="label">This is the enforcement point</span>
+  Lesson&nbsp;1 drew the line between <em>deciding</em> (OPA's job) and <em>enforcing</em>
+  (someone else's). That "someone else" is now concrete: conftest exits <strong>non-zero</strong>
+  when any <code>deny</code> fires, and your CI step fails the build. The Rego decides; the exit
+  code enforces. Everything else in this course is about making that decision correct.
+</div>
+
+<div class="quiz">
+  <p class="q"><code>conftest test</code> prints two FAIL lines. What does the command exit with?</p>
+  <div class="opts">
+    <button class="opt">Zero, because printing a finding never fails.</button>
+    <button class="opt" data-correct>One, because any deny finding fails.</button>
+    <button class="opt">Two, because the exit code counts findings.</button>
+  </div>
+  <div class="explain">
+    <strong>One.</strong> The exit code is a <em>gate</em>, not a tally: it is <code>1</code> if the
+    <code>deny</code> set is non-empty and <code>0</code> if it's empty, no matter how many findings
+    there are. That single bit is what your CI step reads.
+  </div>
+</div>
+
+<h2>4. The check that can never fire</h2>
+
+<p>
+  Now a trap, and it's the most valuable thing in this lesson. Take a Deployment that is otherwise
+  clean but <strong>omits <code>spec.replicas</code> entirely</strong> — very common, since
+  Kubernetes defaults it to <code>1</code>:
+</p>
+
+<pre><code><span class="tok-kw">spec</span>:
+  <span class="tok-com"># no replicas key at all</span>
+  <span class="tok-kw">template</span>: ...</code></pre>
+
+<pre><code>conftest test noreplicas.yaml
+
+3 tests, 3 passed, 0 warnings, 0 failures, 0 exceptions     <span class="tok-com"># exit 0</span></code></pre>
+
+<p>
+  <strong>It passes.</strong> A Deployment that will run a single replica sails straight through the
+  gate you wrote to prevent exactly that. Nothing errored, nothing warned — the check simply never
+  fired, because <code>input.spec.replicas</code> is <em>undefined</em>, so
+  <code>undefined &lt; 2</code> is undefined, so the body can't be satisfied
+  (<a href="0001-the-rego-mental-model.html">Lesson&nbsp;1</a>).
+</p>
+
+<p>
+  The fix is Lesson&nbsp;2's missing-versus-empty username pair, transplanted whole: a
+  <strong>second definition</strong> guarding the other failure mode.
+</p>
+
+<pre><code><span class="tok-com"># the value is wrong…</span>
+deny <span class="tok-kw">contains</span> <span class="tok-str">"Deployment must have at least 2 replicas"</span> <span class="tok-kw">if</span> input.spec.replicas &lt; 2
+
+<span class="tok-com"># …and the key is missing — two failure modes, two definitions, one set</span>
+deny <span class="tok-kw">contains</span> <span class="tok-str">"Deployment must set spec.replicas explicitly"</span> <span class="tok-kw">if</span> <span class="tok-kw">not</span> input.spec.replicas</code></pre>
+
+<pre><code>FAIL - noreplicas.yaml - main - Deployment must set spec.replicas explicitly
+
+4 tests, 3 passed, 0 warnings, 1 failure, 0 exceptions      <span class="tok-com"># exit 1</span></code></pre>
+
+<div class="why">
+  <span class="label">The habit to build now</span>
+  <em>Undefined skips the rule</em> is a safety feature when you're reaching into optional nested
+  structure — it stops your policy crashing on manifests that don't have the field. But for a field
+  you <strong>require</strong>, that same behaviour is a silent hole. Every time you write a check
+  on a value, ask the second question: <em>what if the key isn't there at all?</em> A gate that
+  can't fire is worse than no gate, because everyone believes it's working.
+</div>
+
+<div class="quiz">
+  <p class="q">A Deployment omits <code>spec.replicas</code>. What does <code>deny contains … if input.spec.replicas &lt; 2</code> do?</p>
+  <div class="opts">
+    <button class="opt" data-correct>Nothing fires — the comparison is undefined.</button>
+    <button class="opt">It fires — a missing value counts as zero.</button>
+    <button class="opt">It errors — comparing undefined is illegal.</button>
+  </div>
+  <div class="explain">
+    <strong>Nothing fires.</strong> Reaching a missing key yields <em>undefined</em>, and any
+    comparison against undefined is itself undefined, so the body can't be satisfied and the rule
+    contributes no finding. No error, no warning — the manifest just passes. Add a
+    <code>not input.spec.replicas</code> definition to catch the absent case.
+  </div>
+</div>
+
+<h2>5. <code>deny</code> vs <code>warn</code> vs <code>violation</code></h2>
+
+<p>
+  Conftest recognises three rule names, differing only in <em>how hard they push</em> and, for one,
+  the <em>shape of the message</em> <a href="https://www.conftest.dev/">(conftest.dev)</a>:
+</p>
+
+<table>
+  <thead>
+    <tr><th>Rule</th><th>Message</th><th>Effect on the build</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>deny</code></td><td>a string</td><td><strong>fails</strong> — exit code&nbsp;<code>1</code></td></tr>
+    <tr><td><code>warn</code></td><td>a string</td><td>prints a warning, build <strong>still passes</strong> — exit&nbsp;<code>0</code></td></tr>
+    <tr><td><code>violation</code></td><td>a structured object</td><td>same as <code>deny</code>, but returns rich data, not just text</td></tr>
+  </tbody>
+</table>
+
+<p>
+  Reach for <code>warn</code> when something is worth flagging but shouldn't block a merge. Demote
+  the owner-label check and the finding still surfaces — but the gate opens:
+</p>
+
+<pre><code>warn <span class="tok-kw">contains</span> <span class="tok-str">"Deployment has no owner label"</span> <span class="tok-kw">if</span> <span class="tok-kw">not</span> input.metadata.labels.owner</code></pre>
+
+<pre><code>WARN - deployment.yaml - main - Deployment has no owner label
+
+4 tests, 3 passed, 1 warning, 0 failures, 0 exceptions      <span class="tok-com"># exit 0</span></code></pre>
+
+<div class="quiz">
+  <p class="q">A run reports <code>0 failures</code> but <code>2 warnings</code>. What exit code does conftest return?</p>
+  <div class="opts">
+    <button class="opt" data-correct>Zero, so the pipeline step passes.</button>
+    <button class="opt">One, because warnings block merges.</button>
+    <button class="opt">Two, matching the warning count.</button>
+  </div>
+  <div class="explain">
+    <strong>Zero.</strong> Only <code>deny</code> and <code>violation</code> findings make conftest
+    exit non-zero. <code>warn</code> exists precisely to surface an issue <em>without</em> failing
+    the build — the step passes and CI moves on. Use it for advisories, not hard gates.
+  </div>
+</div>
+
+<h2>6. Name your rules so a coworker can read them</h2>
+
+<p>
+  Four bare <code>deny</code> blocks work, but the mission is also to <strong>teach
+  coworkers</strong>. Conftest lets any <code>deny</code>/<code>warn</code>/<code>violation</code>
+  rule carry an underscore suffix and still collects it
+  <a href="https://www.conftest.dev/">(conftest.dev)</a>. The suffix is documentation; conftest
+  ignores it when matching. Here's the finished policy:
+</p>
+
+<pre><code><span class="tok-kw">package</span> main
+
+deny_default_namespace <span class="tok-kw">contains</span> <span class="tok-str">"Deployment must not run in the default namespace"</span> <span class="tok-kw">if</span> input.metadata.namespace == <span class="tok-str">"default"</span>
+
+deny_replicas_unset <span class="tok-kw">contains</span> <span class="tok-str">"Deployment must set spec.replicas explicitly"</span> <span class="tok-kw">if</span> <span class="tok-kw">not</span> input.spec.replicas
+
+deny_replicas_too_low <span class="tok-kw">contains</span> <span class="tok-str">"Deployment must have at least 2 replicas"</span> <span class="tok-kw">if</span> input.spec.replicas &lt; 2
+
+warn_no_owner <span class="tok-kw">contains</span> <span class="tok-str">"Deployment has no owner label"</span> <span class="tok-kw">if</span> <span class="tok-kw">not</span> input.metadata.labels.owner</code></pre>
+
+<pre><code>WARN - deployment.yaml - main - Deployment has no owner label
+FAIL - deployment.yaml - main - Deployment must not run in the default namespace
+FAIL - deployment.yaml - main - Deployment must have at least 2 replicas
+
+4 tests, 1 passed, 1 warning, 2 failures, 0 exceptions      <span class="tok-com"># exit 1</span></code></pre>
+
+<p>
+  Prefer one clearly-named rule per concern over one <code>deny</code> with a tangled body. A
+  coworker skimming the file learns what you enforce without reading a single condition.
+</p>
+
+<div class="note">
+  <span class="label">One syntax detail real manifests force on you</span>
+  <code>input.metadata.labels.owner</code> works because <code>owner</code> is a plain key. Real
+  Kubernetes labels usually aren't — <code>app.kubernetes.io/name</code> contains dots, which Rego
+  would read as <em>path steps</em>. Reach for such a key with <strong>brackets</strong>:
+  <code>input.metadata.labels["app.kubernetes.io/name"]</code>. Same lookup, quoted key.
+</div>
+
+<div class="note">
+  <span class="label">Next: manifests that are lists</span>
+  Every check here read a <strong>fixed field</strong>, so one definition per problem was enough.
+  But a Deployment's real risk lives in <code>spec.template.spec.containers</code> — a
+  <em>list</em>, of unknown length, where you need a finding naming <em>which</em> container is at
+  fault. That's <a href="0004-iterating-over-config.html">Lesson&nbsp;4</a>: one rule that fans out
+  over a list.
+</div>
+
+<div class="source">
+  <span class="label">Primary source — read this next</span>
+  <a href="https://www.conftest.dev/">Conftest documentation</a>. The authoritative reference for
+  the <code>deny</code>/<code>warn</code>/<code>violation</code> convention, the
+  <code>policy/</code> directory, supported input formats, and every <code>conftest test</code> flag.
+</div>
+
+<div class="takeaways">
+  <span class="label">Main takeaways</span>
+  <ul>
+    <li>Conftest is <strong>OPA with two conveniences</strong>: it parses your config file into <code>input</code>, and it collects rules by name.</li>
+    <li>A <code>deny contains … if</code> rule <em>is</em> the <a href="0002-partial-rules-sets-of-findings.html">Lesson&nbsp;2</a> partial set rule — just named <code>deny</code> inside <code>package main</code>.</li>
+    <li>A useful policy needs <strong>no iteration and no new syntax</strong>: comparison, presence, and equality on fixed fields already gate real manifests.</li>
+    <li><code>input</code> is the <strong>whole parsed file</strong>, so paths follow its real shape (<code>input.metadata.namespace</code>, not <code>input.namespace</code>).</li>
+    <li>Each finding is one FAIL line; the <strong>exit code is the enforcement point</strong> — <code>1</code> if <code>deny</code> is non-empty, <code>0</code> if empty.</li>
+    <li>A check on a <strong>missing key never fires</strong> — a silently-passing gate. Pair every value check with a <code>not input.…</code> presence check.</li>
+    <li><code>deny</code> fails the build; <code>warn</code> advises and passes; <code>violation</code> is <code>deny</code> with structured data.</li>
+    <li>Suffix rules (<code>deny_replicas_too_low</code>) to make each check self-documenting for coworkers.</li>
+  </ul>
+</div>
+
+<div class="ask">
+  <strong>Stuck or curious?</strong> I'm your teacher for this course — ask me anything: how
+  conftest parses a Dockerfile vs YAML, when to prefer <code>violation</code>'s structured output,
+  how to run it across many files in CI, using a package other than <code>main</code>, or wiring one
+  of your real manifests through it. Just ask in the chat.
+</div>
+
+<div class="lesson-nav">
+  <span><a href="0002-partial-rules-sets-of-findings.html">← Lesson 2</a></span>
+  <span><a href="../reference/conftest.html">→ Reference: Conftest</a></span>
+  <span><a href="0004-iterating-over-config.html">Lesson 4 →</a></span>
+  <span><a href="index.html">Course index</a></span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+<script src="../assets/copy-code.js"></script>

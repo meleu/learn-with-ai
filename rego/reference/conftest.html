@@ -5,7 +5,7 @@
 
 <p class="kicker"><a href="../lessons/index.html">Rego Course</a> &nbsp;·&nbsp; Reference</p>
 <h1>Conftest</h1>
-<p class="subtitle">A one-page card to revisit. Compressed essence of Lesson 5 — the convention, the CLI, the exit codes.</p>
+<p class="subtitle">A one-page card to revisit. Compressed essence of Lesson 3 — the convention, the CLI, the exit codes.</p>
 
 <h2>The one-sentence model</h2>
 <div class="why">
@@ -40,16 +40,31 @@
 </p>
 
 <h2>Canonical policy shape</h2>
+<p style="font-family:var(--sans);font-size:0.85rem;color:var(--ink-soft);margin-top:-0.4rem">
+  Fixed fields need no iteration at all — a one-line rule is a real gate:
+</p>
 <pre><code><span class="tok-kw">package</span> main
 
+deny_default_namespace <span class="tok-kw">contains</span> <span class="tok-str">"must not use the default namespace"</span> <span class="tok-kw">if</span> input.metadata.namespace == <span class="tok-str">"default"</span>
+
+<span class="tok-com"># pair every value check with a presence check, or a missing key passes silently</span>
+deny_replicas_unset <span class="tok-kw">contains</span> <span class="tok-str">"must set spec.replicas"</span> <span class="tok-kw">if</span> <span class="tok-kw">not</span> input.spec.replicas
+deny_replicas_low <span class="tok-kw">contains</span> <span class="tok-str">"must have at least 2 replicas"</span> <span class="tok-kw">if</span> input.spec.replicas &lt; 2</code></pre>
+<p style="font-family:var(--sans);font-size:0.85rem;color:var(--ink-soft);margin-top:-0.4rem">
+  Lists need <code>some</code> and a helper to name the long path:
+</p>
+<pre><code><span class="tok-kw">package</span> main
+
+containers := input.spec.template.spec.containers   <span class="tok-com"># helper — not collected by conftest</span>
+
 deny_privileged <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
-	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.spec.containers   <span class="tok-com"># paths match the parsed file's shape</span>
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers
 	c.securityContext.privileged == <span class="tok-kw">true</span>
 	msg := sprintf(<span class="tok-str">"%q runs privileged"</span>, [c.name])
 }
 
 warn_latest_tag <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
-	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.spec.containers
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers
 	endswith(c.image, <span class="tok-str">":latest"</span>)
 	msg := sprintf(<span class="tok-str">"%q uses the mutable :latest tag"</span>, [c.name])
 }</code></pre>
@@ -78,6 +93,9 @@ conftest test pod.yaml --all-namespaces
 <span class="tok-com"># check the gate in a script</span>
 conftest test pod.yaml; echo $?           <span class="tok-com"># 0 = pass, 1 = a deny fired</span>
 
+<span class="tok-com"># see the exact document your rules receive as `input`</span>
+conftest parse pod.yaml
+
 <span class="tok-com"># unit-test the policies themselves (test_ rules, no input file)</span>
 conftest verify -p policy/                 <span class="tok-com"># 0 = all pass, 1 = a test failed</span></code></pre>
 
@@ -90,7 +108,9 @@ WARN - pod.yaml - main - <span class="tok-str">"web"</span> sets no securityCont
   <dt>FAIL / WARN</dt>
   <dd>One line per finding — the string your <code>deny</code>/<code>warn</code> set produced.</dd>
   <dt>tests</dt>
-  <dd>Total rule evaluations, not files. Passed = rules that produced no finding.</dd>
+  <dd>Not files, and not rules. Each <em>finding</em> counts as one test; each rule that produced
+  <em>no</em> finding counts as one <strong>passed</strong> test. So one rule emitting three
+  findings shows as three tests.</dd>
   <dt>failures</dt>
   <dd>Only these (and violations) make the exit code non-zero. Warnings never do.</dd>
 </dl>
@@ -100,6 +120,25 @@ WARN - pod.yaml - main - <span class="tok-str">"web"</span> sets no securityCont
   <code>conftest test pod.yaml -o json</code> shows the query it runs: <code>data.main.deny</code>.
   Anything you can do in <code>opa eval</code> — <code>some</code>, <code>every</code>,
   comprehensions, <code>sprintf</code>, helper rules — works unchanged here.
+  <span style="display:block;margin-top:0.5rem">
+  Rules <em>not</em> named <code>deny</code>/<code>warn</code>/<code>violation</code> are helpers and
+  never appear in the output. To inspect one, add a throwaway
+  <code>warn contains sprintf("DEBUG %v", [x])</code> — no <code>if</code> needed, and a warning
+  won't fail the build.
+  </span>
+</div>
+
+<div class="why">
+  <span class="label">Two traps worth a re-read</span>
+  <strong>1. A missing key never fires.</strong> <code>input.spec.replicas &lt; 2</code> is undefined
+  when the key is absent, so the manifest passes silently. Pair value checks with
+  <code>not input.…</code>.
+  <span style="display:block;margin-top:0.5rem">
+  <strong>2. YAML 1.1 keys.</strong> The parser resolves a bare <code>on:</code> key (GitHub Actions
+  workflows) to the boolean <code>true</code> — so it's <code>input["true"]</code>, not
+  <code>input.on</code>. Run <code>conftest parse file.yaml</code> whenever a path mysteriously
+  never matches; it prints the exact document your rules see.
+  </span>
 </div>
 
 <h2>Supported input formats (selection)</h2>
@@ -113,10 +152,10 @@ WARN - pod.yaml - main - <span class="tok-str">"web"</span> sets no securityCont
 <ul style="font-family:var(--sans);font-size:0.9rem">
   <li><a href="https://www.conftest.dev/">Conftest docs</a> (the convention, CLI, formats)</li>
   <li><a href="https://www.openpolicyagent.org/docs/policy-language">OPA — Policy Language</a> (the Rego underneath)</li>
-  <li><a href="../lessons/0005-conftest-just-opa-underneath.html">Lesson 5</a> (where this card comes from)</li>
+  <li><a href="../lessons/0003-conftest-your-first-gate.html">Lesson 3</a> (where this card comes from)</li>
 </ul>
 
 <div class="lesson-nav">
-  <span><a href="../lessons/0005-conftest-just-opa-underneath.html">← Lesson 5</a></span>
+  <span><a href="../lessons/0003-conftest-your-first-gate.html">← Lesson 3</a></span>
   <span><a href="../lessons/index.html">Course index</a></span>
 </div>

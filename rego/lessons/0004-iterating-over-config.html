@@ -1,28 +1,29 @@
 <meta charset="utf-8">
-<title>Lesson 3 — Iterating Over Config</title>
+<title>Lesson 4 — Iterating Over Config</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="../assets/style.css">
 
-<p class="kicker"><a href="index.html">Rego Course</a> &nbsp;·&nbsp; Lesson 3</p>
+<p class="kicker"><a href="index.html">Rego Course</a> &nbsp;·&nbsp; Lesson 4</p>
 <h1>Iterating Over Config</h1>
-<p class="subtitle">Real manifests are lists. One rule, <code>some&nbsp;…&nbsp;in</code>, and a detailed finding for every bad item.</p>
+<p class="subtitle">Real manifests are lists. One <code>deny</code> rule, <code>some&nbsp;…&nbsp;in</code>, and a finding that names every offending container.</p>
 
 <div class="tip">
   <span class="label">Your win for this lesson</span>
-  By the end you can (1) use <code>some&nbsp;…&nbsp;in</code> to make one partial rule emit
+  By the end you can (1) use <code>some&nbsp;…&nbsp;in</code> to make one <code>deny</code> rule emit
   <strong>a finding per offending item</strong> in a list, (2) build detailed messages with
   <code>sprintf</code>, and (3) reach for <code>every</code> when the question is
   <em>"do all of them pass?"</em>.
 </div>
 
-<h2>1. The config is a list now</h2>
+<h2>1. The risk is inside a list</h2>
 
 <p>
-  In <a href="0002-partial-rules-sets-of-findings.html">Lesson&nbsp;2</a> each check looked at a
-  <em>fixed</em> field — <code>input.age</code>, <code>input.username</code> — so one definition
-  per problem was enough. But the manifests you validate in a pipeline aren't shaped like that.
-  A deployment has a <strong>list</strong> of containers; a compose file, a list of services.
-  You don't know how many there are, and you want to check <em>each one</em>.
+  The gate you built in <a href="0003-conftest-your-first-gate.html">Lesson&nbsp;3</a> checked
+  <em>fixed</em> fields — <code>input.spec.replicas</code>, <code>input.metadata.namespace</code> —
+  so one definition per problem was enough. But the checks a platform team really cares about live
+  one level deeper, in a <strong>list</strong>: the Deployment's containers. Which images are
+  pinned? Which ones run privileged? You don't know how many containers there are, and you want to
+  check <em>each one</em> and name the culprit.
 </p>
 
 <p>
@@ -33,36 +34,55 @@
 
 <div class="flow">
   <div class="box">
-    <div class="t"><code>input.containers</code></div>
-    <div class="d">a list of N items</div>
+    <div class="t">a list of containers</div>
+    <div class="d">N items, N unknown</div>
   </div>
   <div class="arrow">→</div>
   <div class="box policy">
-    <div class="t">rule with <code>some</code></div>
+    <div class="t">one <code>deny</code> with <code>some</code></div>
     <div class="d">body runs once per item</div>
   </div>
   <div class="arrow">→</div>
   <div class="box">
-    <div class="t">a set</div>
-    <div class="d">one finding per match</div>
+    <div class="t">FAIL lines</div>
+    <div class="d">one per match</div>
   </div>
 </div>
 
-<h2>2. <code>some … in</code> — fan out over the list</h2>
+<h2>2. Name the long path once</h2>
 
 <p>
-  <code>some c in input.containers</code> introduces a variable <code>c</code> and tells OPA:
-  <em>"try this body for every element of the list."</em> Each binding that satisfies the whole
-  body contributes its element to the result. Pair it with the <code>contains</code> rule from
-  Lesson&nbsp;2 and a single definition fans out into many findings. Here's a check that flags any
-  image pinned to the mutable <code>:latest</code> tag:
+  Conftest gives you the <strong>whole parsed file</strong>, so a Deployment's containers sit at
+  <code>input.spec.template.spec.containers</code>. Typing that in every rule is noise your
+  coworkers have to re-read each time. A plain <strong>helper rule</strong> — a complete rule
+  (<a href="0001-the-rego-mental-model.html">Lesson&nbsp;1</a>) whose value is that path — fixes it:
 </p>
 
-<pre><code><span class="tok-kw">package</span> manifest
+<pre><code><span class="tok-kw">package</span> main
 
-<span class="tok-com"># one finding PER container pinned to :latest — `some` iterates the list</span>
-violations <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
-	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers
+<span class="tok-com"># name the long path once; every rule below reads better for it</span>
+containers := input.spec.template.spec.containers</code></pre>
+
+<p>
+  Conftest only <em>collects</em> rules named <code>deny</code>, <code>warn</code>, and
+  <code>violation</code> — any other rule in the package is a <strong>helper</strong>, invisible in
+  the output and free for you to use. This one is undefined for a file that isn't a Deployment, and
+  every rule referring to it then quietly skips: the Lesson&nbsp;1 <em>undefined</em> behaviour,
+  working in your favour again.
+</p>
+
+<h2>3. <code>some … in</code> — fan out over the list</h2>
+
+<p>
+  <code>some c in containers</code> introduces a variable <code>c</code> and tells OPA:
+  <em>"try this body for every element of the list."</em> Each binding that satisfies the whole
+  body contributes its element to the result. Pair it with the <code>deny</code> rule you already
+  write and a single definition fans out into many findings:
+</p>
+
+<pre><code><span class="tok-com"># one finding PER container pinned to :latest — `some` iterates the list</span>
+deny <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers
 	endswith(c.image, <span class="tok-str">":latest"</span>)
 	msg := sprintf(<span class="tok-str">"container %q uses the mutable :latest tag"</span>, [c.name])
 }</code></pre>
@@ -71,7 +91,7 @@ violations <span class="tok-kw">contains</span> msg <span class="tok-kw">if</spa
   The body is still just conditions joined by AND (Lesson&nbsp;1) — the only new part is that
   <code>some&nbsp;…&nbsp;in</code> makes <code>c</code> range over the list rather than naming one
   fixed path. OPA evaluates the body once per element; three containers means three attempts, and
-  each attempt that holds adds one message to the shared <code>violations</code> set.
+  each attempt that holds adds one message to the shared <code>deny</code> set.
 </p>
 
 <div class="defrow">
@@ -83,28 +103,34 @@ violations <span class="tok-kw">contains</span> msg <span class="tok-kw">if</spa
   <dd><code>:=</code> assigns a local variable inside the body — here, the finding this binding adds.</dd>
 </div>
 
-<p>Save it as <code>manifest.rego</code> and feed it a list with three containers:</p>
+<p>Point it at a Deployment with three containers:</p>
 
-<pre><code><span class="tok-com"># input.json — real manifests are arrays</span>
-{
-  <span class="tok-str">"containers"</span>: [
-    { <span class="tok-str">"name"</span>: <span class="tok-str">"api"</span>,   <span class="tok-str">"image"</span>: <span class="tok-str">"corp/api:1.4.2"</span> },
-    { <span class="tok-str">"name"</span>: <span class="tok-str">"cache"</span>, <span class="tok-str">"image"</span>: <span class="tok-str">"redis:latest"</span> },
-    { <span class="tok-str">"name"</span>: <span class="tok-str">"web"</span>,   <span class="tok-str">"image"</span>: <span class="tok-str">"nginx:latest"</span> }
-  ]
-}</code></pre>
+<pre><code><span class="tok-com"># deployment.yaml</span>
+<span class="tok-kw">spec</span>:
+  <span class="tok-kw">replicas</span>: 3
+  <span class="tok-kw">template</span>:
+    <span class="tok-kw">spec</span>:
+      <span class="tok-kw">containers</span>:
+        - <span class="tok-kw">name</span>: api
+          <span class="tok-kw">image</span>: corp/api:1.4.2
+        - <span class="tok-kw">name</span>: cache
+          <span class="tok-kw">image</span>: redis:latest
+        - <span class="tok-kw">name</span>: web
+          <span class="tok-kw">image</span>: nginx:latest
+          <span class="tok-kw">securityContext</span>:
+            <span class="tok-kw">privileged</span>: <span class="tok-kw">true</span></code></pre>
 
-<pre><code>opa eval -d manifest.rego -i input.json <span class="tok-str">'data.manifest.violations'</span> --format pretty</code></pre>
+<pre><code>conftest test deployment.yaml</code></pre>
 
-<p>One definition, two findings — the two containers on <code>:latest</code>:</p>
+<p>One definition, two FAIL lines — the two containers on <code>:latest</code>:</p>
 
-<pre><code>[
-  <span class="tok-str">"container \"cache\" uses the mutable :latest tag"</span>,
-  <span class="tok-str">"container \"web\" uses the mutable :latest tag"</span>
-]</code></pre>
+<pre><code>FAIL - deployment.yaml - main - container <span class="tok-str">"cache"</span> uses the mutable :latest tag
+FAIL - deployment.yaml - main - container <span class="tok-str">"web"</span> uses the mutable :latest tag
+
+2 tests, 0 passed, 0 warnings, 2 failures, 0 exceptions</code></pre>
 
 <div class="quiz">
-  <p class="q">Three containers, two of them on <code>:latest</code>. Using <code>some c in input.containers</code>, how many findings does the single <code>violations</code> rule add?</p>
+  <p class="q">Three containers, two of them on <code>:latest</code>. Using <code>some c in containers</code>, how many findings does the single <code>deny</code> rule add?</p>
   <div class="opts">
     <button class="opt">One finding, because one rule adds one element.</button>
     <button class="opt" data-correct>Two findings, one for each matching binding.</button>
@@ -117,13 +143,13 @@ violations <span class="tok-kw">contains</span> msg <span class="tok-kw">if</spa
   </div>
 </div>
 
-<h2>3. <code>sprintf</code> — messages that name the culprit</h2>
+<h2>4. <code>sprintf</code> — messages that name the culprit</h2>
 
 <p>
   A finding that says <em>"an image uses :latest"</em> makes a human go hunting. A finding that
-  says <em>which</em> container is instantly actionable. <code>sprintf(format, args)</code> builds
-  a string from a format template and an <strong>array</strong> of arguments — one array slot per
-  <code>%</code> verb, in order:
+  says <em>which</em> container is instantly actionable — and in a build log, that difference is the
+  whole value of the gate. <code>sprintf(format, args)</code> builds a string from a format template
+  and an <strong>array</strong> of arguments — one array slot per <code>%</code> verb, in order:
 </p>
 
 <pre><code>msg := sprintf(<span class="tok-str">"container %q on image %q"</span>, [c.name, c.image])
@@ -142,11 +168,11 @@ violations <span class="tok-kw">contains</span> msg <span class="tok-kw">if</spa
 <p>
   The <code>%q</code> quoting is worth the habit: it makes names visibly stand out in a message and
   survives empty or odd values (an empty name prints as <code>""</code>, not as nothing). Full verb
-  list and more examples live on the new
+  list and more examples live on the
   <a href="../reference/iteration-and-strings.html">Iteration &amp; Strings</a> reference card.
 </p>
 
-<h2>4. More conditions, deeper input</h2>
+<h2>5. More conditions, deeper input</h2>
 
 <p>
   A body can mix iteration with any number of other conditions — still AND. Add a second check for
@@ -154,53 +180,72 @@ violations <span class="tok-kw">contains</span> msg <span class="tok-kw">if</spa
 </p>
 
 <pre><code><span class="tok-com"># one finding per privileged container</span>
-violations <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
-	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers
+deny <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers
 	c.securityContext.privileged == <span class="tok-kw">true</span>
 	msg := sprintf(<span class="tok-str">"container %q runs privileged"</span>, [c.name])
 }</code></pre>
 
 <p>
-  This is a second definition of <code>violations</code>, so its findings <strong>union</strong>
-  into the same set (Lesson&nbsp;2). Notice the safety you get for free: if a container has no
-  <code>securityContext</code>, then <code>c.securityContext.privileged</code> is
-  <strong>undefined</strong>, the <code>== true</code> comparison is undefined, the body fails for
-  that binding — and it simply adds nothing. Missing structure quietly skips the check instead of
-  crashing. That's the same <em>undefined</em> from Lesson&nbsp;1, now working in your favour.
+  This is a second definition of <code>deny</code>, so its findings <strong>union</strong>
+  into the same set (<a href="0002-partial-rules-sets-of-findings.html">Lesson&nbsp;2</a>) and
+  conftest prints them together:
 </p>
 
-<h2>5. <code>every</code> — the "do all of them pass?" question</h2>
+<pre><code>FAIL - deployment.yaml - main - container <span class="tok-str">"cache"</span> uses the mutable :latest tag
+FAIL - deployment.yaml - main - container <span class="tok-str">"web"</span> runs privileged
+FAIL - deployment.yaml - main - container <span class="tok-str">"web"</span> uses the mutable :latest tag
+
+3 tests, 0 passed, 0 warnings, 3 failures, 0 exceptions</code></pre>
+
+<p>
+  Notice the safety you get for free: if a container has no <code>securityContext</code>, then
+  <code>c.securityContext.privileged</code> is <strong>undefined</strong>, the <code>== true</code>
+  comparison is undefined, the body fails for that binding — and it adds nothing. Missing structure
+  quietly skips the check instead of crashing. Here that's exactly what you want (a container
+  without a <code>securityContext</code> genuinely isn't privileged) — unlike Lesson&nbsp;3's
+  <code>replicas</code>, where the missing key <em>was</em> the problem. Same mechanism; it's on
+  you each time to decide which case you're in.
+</p>
+
+<h2>6. <code>every</code> — the "do all of them pass?" question</h2>
 
 <p>
   <code>some</code> asks <em>"is there an element that…?"</em> — perfect for collecting findings.
   Its mirror image is <code>every</code>, which asks <em>"do all elements satisfy…?"</em> and
-  yields a single boolean. Use it for a whole-manifest verdict:
+  yields a single boolean. That's a verdict, not a finding, so it belongs in a
+  <strong>helper</strong> rule that a <code>deny</code> then consumes:
 </p>
 
-<pre><code><span class="tok-com"># true only when EVERY image avoids :latest</span>
+<pre><code><span class="tok-com"># helper — true only when EVERY image avoids :latest</span>
 <span class="tok-kw">default</span> all_pinned := <span class="tok-kw">false</span>
 all_pinned <span class="tok-kw">if</span> {
-	<span class="tok-kw">every</span> c <span class="tok-kw">in</span> input.containers {
+	<span class="tok-kw">every</span> c <span class="tok-kw">in</span> containers {
 		<span class="tok-kw">not</span> endswith(c.image, <span class="tok-str">":latest"</span>)
 	}
-}</code></pre>
+}
+
+<span class="tok-com"># one whole-manifest finding, instead of one per container</span>
+deny <span class="tok-kw">contains</span> <span class="tok-str">"every image must be pinned to an immutable tag"</span> <span class="tok-kw">if</span> <span class="tok-kw">not</span> all_pinned</code></pre>
 
 <p>
   <code>every c in xs { … }</code> holds when the braced body holds for <em>all</em> bindings; one
   failing element makes the whole thing fail. As a complete rule it needs a <code>default</code>
-  (Lesson&nbsp;1) so it answers <code>false</code> rather than going undefined.
+  (Lesson&nbsp;1) so it answers <code>false</code> rather than going undefined — otherwise
+  <code>not all_pinned</code> would be reasoning about a value that isn't there.
 </p>
 
 <div class="why">
   <span class="label">The gotcha everyone meets once</span>
   <code>every</code> over an <strong>empty</strong> list is <strong>true</strong> — there's no
-  element to violate the condition, so "all of them pass" holds vacuously. A manifest with zero
-  containers reports <code>all_pinned = true</code>. When "empty" should <em>not</em> pass, add an
-  explicit non-empty check (<code>count(input.containers) &gt; 0</code>).
+  element to violate the condition, so "all of them pass" holds vacuously. A Deployment with zero
+  containers reports <code>all_pinned = true</code> and <strong>sails through your gate</strong>.
+  It's Lesson&nbsp;3's silent-pass trap wearing a different hat. When "empty" should <em>not</em>
+  pass, add an explicit non-empty check (<code>count(containers) &gt; 0</code>).
 </div>
 
 <div class="quiz">
-  <p class="q"><code>input.containers</code> is the empty list <code>[]</code>. What does <code>all_pinned</code>, built with <code>every</code>, evaluate to?</p>
+  <p class="q"><code>containers</code> is the empty list <code>[]</code>. What does <code>all_pinned</code>, built with <code>every</code>, evaluate to?</p>
   <div class="opts">
     <button class="opt">It is <code>false</code>, since nothing was pinned.</button>
     <button class="opt" data-correct>It is <code>true</code> — vacuously, no element failed.</button>
@@ -213,7 +258,7 @@ all_pinned <span class="tok-kw">if</span> {
   </div>
 </div>
 
-<h2>6. A rule body is the AND of its lines</h2>
+<h2>7. A rule body is the AND of its lines</h2>
 
 <p>
   So <em>where</em> does that <code>count</code> guard go? The answer is worth pausing on, because
@@ -226,8 +271,8 @@ all_pinned <span class="tok-kw">if</span> {
 
 <pre><code><span class="tok-kw">default</span> all_pinned := <span class="tok-kw">false</span>
 all_pinned <span class="tok-kw">if</span> {
-	count(input.containers) &gt; 0        <span class="tok-com"># AND — must be non-empty</span>
-	<span class="tok-kw">every</span> c <span class="tok-kw">in</span> input.containers {   <span class="tok-com"># AND — and all pinned</span>
+	count(containers) &gt; 0                  <span class="tok-com"># AND — must be non-empty</span>
+	<span class="tok-kw">every</span> c <span class="tok-kw">in</span> containers {          <span class="tok-com"># AND — and all pinned</span>
 		<span class="tok-kw">not</span> endswith(c.image, <span class="tok-str">":latest"</span>)
 	}
 }</code></pre>
@@ -235,23 +280,23 @@ all_pinned <span class="tok-kw">if</span> {
 <p>
   On an empty list, <code>count([]) &gt; 0</code> is false, so the body fails as a whole and the
   <code>default</code> answers <code>false</code> — the vacuous <code>true</code> can never leak
-  out. The placement matters: the guard is an <em>outer</em> body line. Tucking it
-  <em>inside</em> the <code>every&nbsp;{&nbsp;…&nbsp;}</code> braces wouldn't help, because that
-  block runs <em>per element</em> — with zero elements it never runs, and the rule is vacuously
-  true again.
+  out, and the <code>deny</code> fires as it should. The placement matters: the guard is an
+  <em>outer</em> body line. Tucking it <em>inside</em> the <code>every&nbsp;{&nbsp;…&nbsp;}</code>
+  braces wouldn't help, because that block runs <em>per element</em> — with zero elements it never
+  runs, and the rule is vacuously true again.
 </p>
 
 <div class="note">
   <span class="label">Which rules need the guard?</span>
-  Only the "do all pass?" ones. A <code>some</code>/<code>violations</code> rule needs no guard:
+  Only the "do all pass?" ones. A <code>some</code>-based <code>deny</code> needs no guard:
   an empty list yields no findings, i.e. <code>[]</code>, which already means "nothing wrong".
   And if an empty manifest should itself be a <em>finding</em>, don't guard <code>all_pinned</code>
-  — add a separate check: <code>violations contains "no containers" if count(input.containers) == 0</code>.
+  — add a separate check: <code>deny contains "no containers" if count(containers) == 0</code>.
   Whether empty is fine or forbidden is a policy decision, not a Rego one.
 </div>
 
 <div class="quiz">
-  <p class="q">You want <code>all_pinned</code> to be <code>false</code> for an empty list. Where does <code>count(input.containers) &gt; 0</code> belong?</p>
+  <p class="q">You want <code>all_pinned</code> to be <code>false</code> for an empty list. Where does <code>count(containers) &gt; 0</code> belong?</p>
   <div class="opts">
     <button class="opt" data-correct>As another line in the rule's body.</button>
     <button class="opt">As another line inside the braces.</button>
@@ -265,7 +310,7 @@ all_pinned <span class="tok-kw">if</span> {
   </div>
 </div>
 
-<h2>7. Next: collecting values, not just booleans</h2>
+<h2>8. Next: collecting values, not just booleans</h2>
 
 <div class="note">
   <span class="label">Where this goes next</span>
@@ -274,7 +319,7 @@ all_pinned <span class="tok-kw">if</span> {
   <code>every</code>. The same <code>some</code> can also collect the <strong>values
   themselves</strong> — the set of offending container names, a map of name&nbsp;→&nbsp;image — using
   <strong>comprehensions</strong>. That's the whole of
-  <a href="0004-comprehensions.html">Lesson&nbsp;4</a>.
+  <a href="0005-comprehensions.html">Lesson&nbsp;5</a>.
 </div>
 
 <div class="source">
@@ -289,24 +334,26 @@ all_pinned <span class="tok-kw">if</span> {
   <span class="label">Main takeaways</span>
   <ul>
     <li><strong>Real config is a list</strong>, so checks iterate instead of naming a fixed field.</li>
-    <li><code>some c in input.containers</code> runs the body once per element; combined with <code>contains</code>, one definition emits <strong>one finding per matching item</strong>.</li>
+    <li>A rule that isn't <code>deny</code>/<code>warn</code>/<code>violation</code> is a <strong>helper</strong> — invisible to conftest. Use one to name a long path once (<code>containers := input.spec.template.spec.containers</code>).</li>
+    <li><code>some c in containers</code> runs the body once per element; combined with <code>contains</code>, one definition emits <strong>one FAIL line per matching item</strong>.</li>
     <li><code>sprintf(fmt, [args])</code> builds detailed messages; <code>%q</code> quotes a string, <code>%s</code> leaves it bare, <code>%d</code> is an integer, <code>%v</code> is any value.</li>
     <li>A body freely mixes iteration with other conditions (still AND); reaching into a <strong>missing nested field is undefined</strong>, which safely skips that binding.</li>
     <li><code>every c in xs { … }</code> answers <em>"do all pass?"</em> as one boolean — and is <strong>vacuously true over an empty list</strong>, so guard with <code>count</code> when empty should fail.</li>
     <li>A rule <strong>body is the AND of its lines</strong> (the newline <em>is</em> the AND); the empty-list guard is an <em>outer</em> body line beside the <code>every</code>, not inside its braces.</li>
-    <li>The same <code>some</code> drives <strong>comprehensions</strong> like <code>{v | body}</code> that build collections — the subject of <a href="0004-comprehensions.html">Lesson&nbsp;4</a>.</li>
+    <li>The same <code>some</code> drives <strong>comprehensions</strong> like <code>{v | body}</code> that build collections — the subject of <a href="0005-comprehensions.html">Lesson&nbsp;5</a>.</li>
   </ul>
 </div>
 
 <div class="ask">
   <strong>Stuck or curious?</strong> I'm your teacher for this course — ask me anything: why a
   missing field is undefined rather than an error, when to pick <code>some</code> vs
-  <code>every</code>, or how to shape one of your real manifests into a check. Just ask in the chat.
+  <code>every</code>, whether a helper rule belongs in its own file, or how to shape one of your
+  real manifests into a check. Just ask in the chat.
 </div>
 
 <div class="lesson-nav">
-  <span><a href="0002-partial-rules-sets-of-findings.html">← Lesson 2</a></span>
-  <span><a href="0004-comprehensions.html">→ Lesson 4</a></span>
+  <span><a href="0003-conftest-your-first-gate.html">← Lesson 3</a></span>
+  <span><a href="0005-comprehensions.html">→ Lesson 5</a></span>
   <span><a href="index.html">Course index</a></span>
 </div>
 

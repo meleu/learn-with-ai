@@ -200,11 +200,12 @@ deny <span class="tok-kw">if</span> count(violations) &gt; 0</code></pre>
   property — "no findings" is already <code>[]</code>, a defined value that needs no
   <code>default</code> — is exactly what makes the pattern pleasant to build on.
   <span style="display:block;margin-top:0.5rem">
-  Policy tooling that runs in a pipeline is built directly on this shape, and we'll get there
-  once the Rego fundamentals are solid — framed, when we do, as <em>just OPA underneath</em>.
-  For now the win is that you can already write and read it. Next lesson: giving those messages
-  real detail (embedding input values with <code>sprintf</code>) and iterating over lists of
-  items with <code>some … in</code>.
+  But notice what's still missing: that <code>deny</code> is a <em>decision</em> printed in your
+  terminal. Nothing was gated; no build failed. In
+  <a href="0003-conftest-your-first-gate.html">Lesson&nbsp;3</a> you close that gap — rename
+  <code>violations</code> to <code>deny</code>, point <strong>conftest</strong> at a real
+  Kubernetes manifest, and get an exit code your pipeline can fail on. No new Rego required:
+  the three rules above are already a working policy.
   </span>
 </div>
 
@@ -223,7 +224,7 @@ deny <span class="tok-kw">if</span> count(violations) &gt; 0</code></pre>
     <li>When no body holds, the result is the <strong>empty set <code>[]</code></strong> — a defined value, <em>not</em> undefined, needing no <code>default</code>.</li>
     <li>That's the opposite failure mode from a <strong>complete rule</strong>, which is <em>undefined</em> when its body can't be satisfied.</li>
     <li>Fold a set of findings back to a verdict with a complete rule: <code>deny if count(violations) &gt; 0</code>.</li>
-    <li>This "collect findings, fold to a verdict" shape is the backbone of real policies — the exact pattern pipeline policy tooling is built on (covered later).</li>
+    <li>This "collect findings, fold to a verdict" shape is the backbone of real policies — and it's <em>already</em> a conftest policy: <a href="0003-conftest-your-first-gate.html">Lesson&nbsp;3</a> runs it on a real manifest with no new Rego.</li>
   </ul>
 </div>
 
@@ -234,7 +235,9 @@ deny <span class="tok-kw">if</span> count(violations) &gt; 0</code></pre>
 </div>
 
 <div class="lesson-nav">
+  <span><a href="0001-the-rego-mental-model.html">← Lesson 1</a></span>
   <span><a href="../reference/rule-types.html">→ Reference: Complete vs partial rules</a></span>
+  <span><a href="0003-conftest-your-first-gate.html">Lesson 3 →</a></span>
   <span><a href="index.html">Course index</a></span>
 </div>
 

@@ -11,20 +11,37 @@
 - Ground every claim in RESOURCES.md sources; cite inline.
 - OPA 1.0 / Rego v1 syntax everywhere (`if`, `contains`). Never post deprecated syntax.
 - Lessons stay short: one win each; tight edit-run-observe loops; end with concise takeaway bullets.
-- **Pure Rego with `opa` first (L1–L4), conftest deferred to L5.** Early lessons teach the
-  language via `opa eval`/`opa run`, not conftest's `deny`/`warn` convention. Domain for
+- **Pure Rego with `opa` for L1–L2 only; conftest from L3 on (learner request, 2026-07-22).**
+  L1–L2 teach the language via `opa eval` so nothing about Rego hides behind a tool. Domain for
   fundamentals: age validation / generic JSON (low working memory).
-- **Conftest-first tooling from L5 on (learner request).** Once conftest lands (L5), hands-on
-  tasks use conftest tooling, not the `opa` CLI. Unit-test with `conftest verify` (+ `test_`
-  rules, `with input as`), NOT `opa test`. "It's just OPA underneath" framing stays. `opa fmt`
-  is the likely exception worth keeping. (MISSION criterion still lists "opa (eval, fmt, test)";
-  left as-is since opa underlies conftest — revisit if learner wants wording changed.)
+- **Conftest-first tooling from L3 on.** Hands-on tasks use conftest tooling, not the `opa` CLI.
+  Unit-test with `conftest verify` (+ `test_` rules, `with input as`), NOT `opa test`. "It's just
+  OPA underneath" framing stays. `opa fmt` is the likely exception worth keeping. (MISSION criterion
+  still lists "opa (eval, fmt, test)"; left as-is since opa underlies conftest — revisit if learner
+  wants wording changed.)
+  - **Why L3 and not L5:** the learner re-read L2 and observed conftest could land immediately
+    after it. Verified true — a real Deployment gate needs only complete + partial rules, no
+    iteration, no multi-line bodies. L2 also ends on an unresolved beat ("a decision isn't yet
+    enforcement") that conftest's exit code closes. Restructure done 2026-07-22.
+- **To display a value under conftest** (helpers aren't printed): throwaway
+  `warn contains sprintf("DEBUG %v", [x])`. A `contains` rule with no `if` always contributes.
+  `%v` prints sets as `{…}` and arrays as `[…]` — handy for teaching the difference.
 - **Never touch the learner's code files — no creating and no editing.** Everything under
   `exercises/` belongs to the learner; never write there, not even to fix or sync with samples.
 
 ## Tooling / setup
 
 - Tool installs: prefer Homebrew (even on Linux).
+- Local versions used to verify samples: conftest `dev` / OPA 1.15.2 (conftest), opa 1.18.2 (CLI).
+
+## Domain gotchas (verified, keep out of early lessons)
+
+- **GitHub Actions workflows are a trap as a teaching domain.** conftest's YAML parser resolves the
+  bare `on:` key to YAML 1.1 boolean `true`, so `input.on.pull_request_target` never matches — it's
+  `input["true"].pull_request_target`. Great war story for a `conftest parse` lesson; poison for a
+  beginner lesson. Recorded on the conftest reference card.
+- **`conftest test` "N tests"** = one per finding, plus one per rule that produced nothing
+  ("passed"). Not files, not rules. Verified.
 
 ## State
 
@@ -46,30 +63,31 @@ Reference cards live in `reference/`; shared styling in `assets/style.css`.
       same-named defs, empty set vs complete-rule undefined, fold to verdict with `count() > 0`.
       Framed as the shape of conftest `deny` (forward-pointer only; no conftest conventions —
       that's L5). Domain: `signup` validator (age + username). Ref: `rule-types.html`.
-- [x] **L3** — Iterating over config (`0003`). `some … in` fans a partial rule → one finding
-      per bad item; `sprintf` verbs (`%q/%s/%d/%v`); multi-condition bodies over nested `input`
-      (privileged check); `every` as mirror of `some` + empty-list vacuous-truth gotcha (guard
-      with `count`). §6 "a rule body is the AND of its lines" (guard goes as an outer body line,
-      not inside `every` braces; `some`-rules need no guard). Comprehensions = light pointer to L4.
-      **Domain shifts here** to a real `containers` array (`:latest`, `securityContext.privileged`)
-      — the mission's shape. Still pure Rego / `violations`. Verified vs opa 1.18.2.
-      Ref: `iteration-and-strings.html`.
-- [x] **L4** — Comprehensions (`0004`). All three forms: set `{v|…}` (dedupe/unordered),
-      array `[v|…]` (keeps order+dups), object `{k:v|…}` (unique keys → conflict error). Beats:
-      distinct-values idiom `count([x|…]) == count({x|…})`; comprehension is **never undefined**
-      → empty match = empty collection (contrast undefined-skips-rule), so guard `count(…) > 0`;
-      comprehension as a step in a rule body (collect → decide/`sprintf`, e.g. `concat`). Same
-      `containers` domain as L3. Ref: expanded `iteration-and-strings.html` (now "Lessons 3–4").
-      NOTE: samples NOT run through opa this session — worth a quick `opa eval` sanity pass.
-- [x] **L5** — Conftest as "just OPA underneath" (`0005`). Reframes `package main` +
-      `deny contains msg if` as the known L2 partial-rule shape (no new Rego). Two conveniences:
-      (1) conftest parses the config → `input` (no hand-written input.json); (2) rules matched by
-      name (`deny`/`warn`/`violation`) in pkg `main`. Domain → real k8s Pod (`input.spec.containers`);
-      path shift used as a teaching beat (input = whole parsed file). Beats: `conftest test pod.yaml`;
-      each finding = one FAIL line; **exit code is the enforcement point**. deny/warn/violation +
-      exit-code table (deny=1, warn=0, violation=structured). Rule-name suffixes (`deny_privileged`)
-      for coworker readability. Ends with forward-pointer to L6 (`conftest verify`). Ref: `conftest.html`.
-      **All samples verified** vs real conftest (OPA 1.15.2).
+- [x] **L3** — Conftest: your first real gate (`0003`). **NEW, inserted 2026-07-22**; absorbed the
+      old L5. Deliberately uses **only complete + partial rules** — no iteration, no multi-line
+      bodies. Domain: real k8s **Deployment**, three single-line `deny`s mapping 1:1 onto L2's three
+      shapes (`< 2` ↔ `age < 18`; `not …labels.owner` ↔ `not input.username`; `== "default"` ↔ `== ""`).
+      Beats: two conveniences (parse→`input`; rules matched by name in pkg `main`); `conftest test`;
+      one FAIL line per finding; **exit code is the enforcement point**; §4 **the check that can
+      never fire** (omit `spec.replicas` → `undefined < 2` → silent pass; fix = L2's missing-vs-empty
+      pair, retrieval practice on L2's subtlest point); deny/warn/violation table; rule-name suffixes;
+      note on bracket lookup for dotted label keys. **All outputs verified** vs conftest/OPA 1.15.2.
+      Ref: `conftest.html`.
+- [x] **L4** — Iterating over config (`0004`, was `0003`). Reframed to conftest: `package main`,
+      `deny`, `conftest test`, real Deployment path. New §2 beat: **helper rule to name the long
+      path** (`containers := input.spec.template.spec.containers`) + "non-deny rules are helpers,
+      invisible to conftest". `some … in` → one FAIL per bad item; `sprintf` verbs (`%q/%s/%d/%v`);
+      nested-field undefined **contrasted with L3's replicas trap** (same mechanism, opposite intent);
+      `every` now lives in a helper consumed by `deny contains … if not all_pinned`; empty-list
+      vacuous-truth gotcha called back to L3's silent-pass trap; §7 "a rule body is the AND of its
+      lines". **All samples verified** vs real conftest. Ref: `iteration-and-strings.html`.
+- [x] **L5** — Comprehensions (`0005`, was `0004`). Reframed to conftest. New §2: **debug-`warn`
+      technique** to see a helper's value (also shows `%v` printing sets as `{}` vs arrays as `[]`).
+      All three forms: set `{v|…}`, array `[v|…]`, object `{k:v|…}` (unique keys → conflict).
+      Distinct-values idiom now a **real `deny`** ("container names must be unique"); comprehension
+      as a step in a `deny` body (`concat` → one rolled-up finding) + `count(…) > 0` guard against a
+      hollow finding; note on one-finding-vs-many as a readability call. **All samples verified** vs
+      real conftest.
 - [ ] **L6** — Unit-testing with `conftest verify`: `*_test.rego`, `test_` rules, mock `input`
       via `with input as …`, red/green loop so a coworker's change can't silently break a gate.
       `conftest verify` takes NO input file; exit 0 all-pass / 1 on failure. Assert against the
