@@ -27,6 +27,18 @@ violations <span class="tok-kw">contains</span> msg <span class="tok-kw">if</spa
   <a href="rule-types.html">union</a> into one set · empty list ⇒ no findings ⇒ <code>[]</code>.
 </p>
 
+<h2>Require a field — <code>not</code></h2>
+<pre><code>violations <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> input.containers
+	<span class="tok-kw">not</span> c.readinessProbe             <span class="tok-com"># holds when undefined</span>
+	msg := sprintf(<span class="tok-str">"container %q has no readinessProbe"</span>, [c.name])
+}</code></pre>
+<p style="font-family:var(--sans);font-size:0.85rem;color:var(--ink-soft);margin-top:-0.6rem">
+  <code>not x</code> holds iff <code>x</code> is <strong>undefined or false</strong> · presence only:
+  <code>readinessProbe: {}</code> is defined, so it <strong>passes</strong> · assert deeper
+  (<code>not c.readinessProbe.httpGet</code>) when the shape matters.
+</p>
+
 <h2>All must pass? — <code>every</code></h2>
 <pre><code><span class="tok-kw">default</span> all_pinned := <span class="tok-kw">false</span>
 all_pinned <span class="tok-kw">if</span> {

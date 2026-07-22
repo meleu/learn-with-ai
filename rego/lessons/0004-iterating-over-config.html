@@ -11,8 +11,9 @@
   <span class="label">Your win for this lesson</span>
   By the end you can (1) use <code>some&nbsp;…&nbsp;in</code> to make one <code>deny</code> rule emit
   <strong>a finding per offending item</strong> in a list, (2) build detailed messages with
-  <code>sprintf</code>, and (3) reach for <code>every</code> when the question is
-  <em>"do all of them pass?"</em>.
+  <code>sprintf</code>, (3) flag a <strong>missing required field</strong> — a container with no
+  <code>readinessProbe</code> — with <code>not</code>, and (4) reach for <code>every</code> when the
+  question is <em>"do all of them pass?"</em>.
 </div>
 
 <h2>1. The risk is inside a list</h2>
@@ -113,6 +114,10 @@ deny <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
       <span class="tok-kw">containers</span>:
         - <span class="tok-kw">name</span>: api
           <span class="tok-kw">image</span>: corp/api:1.4.2
+          <span class="tok-kw">readinessProbe</span>:
+            <span class="tok-kw">httpGet</span>:
+              <span class="tok-kw">path</span>: /healthz
+              <span class="tok-kw">port</span>: 8080
         - <span class="tok-kw">name</span>: cache
           <span class="tok-kw">image</span>: redis:latest
         - <span class="tok-kw">name</span>: web
@@ -208,7 +213,79 @@ FAIL - deployment.yaml - main - container <span class="tok-str">"web"</span> use
   you each time to decide which case you're in.
 </p>
 
-<h2>6. <code>every</code> — the "do all of them pass?" question</h2>
+<h2>6. When the <em>absence</em> is the violation</h2>
+
+<p>
+  Both checks so far fire on a field that is <strong>present and wrong</strong>. Plenty of the rules
+  a platform team actually ships are the opposite: the field must simply <strong>be there</strong>.
+  The canonical one is the <code>readinessProbe</code> — without it Kubernetes considers a pod ready
+  the moment it starts, sends it traffic before the process can serve, and every rollout drops
+  requests
+  (<a href="https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/">k8s
+  docs — probes</a>). It's a one-line omission with a production-shaped blast radius, which makes it
+  a perfect gate.
+</p>
+
+<p>
+  You already have every piece: iterate the containers, and keep the ones where the field
+  <em>isn't</em> there. The only new keyword is <code>not</code>:
+</p>
+
+<pre><code><span class="tok-com"># one finding per container missing a readinessProbe</span>
+deny <span class="tok-kw">contains</span> msg <span class="tok-kw">if</span> {
+	<span class="tok-kw">some</span> c <span class="tok-kw">in</span> containers
+	<span class="tok-kw">not</span> c.readinessProbe
+	msg := sprintf(<span class="tok-str">"container %q has no readinessProbe"</span>, [c.name])
+}</code></pre>
+
+<p>
+  <code>not <em>expr</em></code> holds exactly when <code><em>expr</em></code> is
+  <strong>undefined</strong> (or <code>false</code>). For the <code>api</code> container
+  <code>c.readinessProbe</code> is a value, so <code>not</code> fails and the binding contributes
+  nothing. For <code>cache</code> and <code>web</code> the lookup is undefined — and <code>not</code>
+  flips that into a condition that <em>holds</em>, so the body runs to the end and the finding lands.
+  Same undefined you met one section ago, opposite intent: there it meant <em>"nothing to report"</em>,
+  here it <em>is</em> the report. That's Lesson&nbsp;3's <code>replicas</code> pair again — this
+  time applied per item in a list.
+</p>
+
+<p>Against the same manifest, all three definitions together:</p>
+
+<pre><code>FAIL - deployment.yaml - main - container <span class="tok-str">"cache"</span> has no readinessProbe
+FAIL - deployment.yaml - main - container <span class="tok-str">"cache"</span> uses the mutable :latest tag
+FAIL - deployment.yaml - main - container <span class="tok-str">"web"</span> has no readinessProbe
+FAIL - deployment.yaml - main - container <span class="tok-str">"web"</span> runs privileged
+FAIL - deployment.yaml - main - container <span class="tok-str">"web"</span> uses the mutable :latest tag
+
+5 tests, 0 passed, 0 warnings, 5 failures, 0 exceptions</code></pre>
+
+<div class="why">
+  <span class="label">What this rule does <em>not</em> say</span>
+  <code>not c.readinessProbe</code> asserts <strong>presence, nothing more</strong>. A container
+  with <code>readinessProbe: {}</code> — an empty, useless probe — is a defined value, so
+  <code>not</code> fails and the gate <strong>passes it</strong>. Presence checks are cheap to write
+  and easy to satisfy hollowly; when that matters, check the thing you actually need instead, e.g.
+  <code>not c.readinessProbe.httpGet</code>. Deciding how deep to look is the policy author's job,
+  and it's the difference between a gate that changes behaviour and one that teaches people to add
+  empty stanzas.
+</div>
+
+<div class="quiz">
+  <p class="q">A container declares <code>readinessProbe: {}</code> and nothing else. What does the rule <code>not c.readinessProbe</code> do with it?</p>
+  <div class="opts">
+    <button class="opt">Flags it: the empty probe is falsy.</button>
+    <button class="opt" data-correct>Passes it: an empty map is defined.</button>
+    <button class="opt">Errors out: the probe is malformed.</button>
+  </div>
+  <div class="explain">
+    <strong>It passes.</strong> <code>not</code> only holds for undefined or <code>false</code>, and
+    <code>{}</code> is a perfectly defined value — so the body stops there and adds no finding. To
+    demand a real probe, assert the field you care about, such as
+    <code>not c.readinessProbe.httpGet</code>.
+  </div>
+</div>
+
+<h2>7. <code>every</code> — the "do all of them pass?" question</h2>
 
 <p>
   <code>some</code> asks <em>"is there an element that…?"</em> — perfect for collecting findings.
@@ -258,7 +335,7 @@ deny <span class="tok-kw">contains</span> <span class="tok-str">"every image mus
   </div>
 </div>
 
-<h2>7. A rule body is the AND of its lines</h2>
+<h2>8. A rule body is the AND of its lines</h2>
 
 <p>
   So <em>where</em> does that <code>count</code> guard go? The answer is worth pausing on, because
@@ -310,7 +387,7 @@ all_pinned <span class="tok-kw">if</span> {
   </div>
 </div>
 
-<h2>8. Next: collecting values, not just booleans</h2>
+<h2>9. Next: collecting values, not just booleans</h2>
 
 <div class="note">
   <span class="label">Where this goes next</span>
@@ -338,6 +415,7 @@ all_pinned <span class="tok-kw">if</span> {
     <li><code>some c in containers</code> runs the body once per element; combined with <code>contains</code>, one definition emits <strong>one FAIL line per matching item</strong>.</li>
     <li><code>sprintf(fmt, [args])</code> builds detailed messages; <code>%q</code> quotes a string, <code>%s</code> leaves it bare, <code>%d</code> is an integer, <code>%v</code> is any value.</li>
     <li>A body freely mixes iteration with other conditions (still AND); reaching into a <strong>missing nested field is undefined</strong>, which safely skips that binding.</li>
+    <li>To require a field, flip that undefined with <code>not</code>: <code>not c.readinessProbe</code> holds precisely when the field is absent — a <strong>presence check</strong>, which <code>readinessProbe: {}</code> still satisfies.</li>
     <li><code>every c in xs { … }</code> answers <em>"do all pass?"</em> as one boolean — and is <strong>vacuously true over an empty list</strong>, so guard with <code>count</code> when empty should fail.</li>
     <li>A rule <strong>body is the AND of its lines</strong> (the newline <em>is</em> the AND); the empty-list guard is an <em>outer</em> body line beside the <code>every</code>, not inside its braces.</li>
     <li>The same <code>some</code> drives <strong>comprehensions</strong> like <code>{v | body}</code> that build collections — the subject of <a href="0005-comprehensions.html">Lesson&nbsp;5</a>.</li>
